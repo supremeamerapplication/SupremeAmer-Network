@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SupremeAmer | Task Center</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Complete tasks and earn SupremeAmer coins">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #ff9800;
+      --secondary: #fdc500;
+      --ads: #f59e42;
+      --active: #10b981;
+      --bg: #111;
+      --panel: rgba(30,30,40,0.97);
+      --white: #fff;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --gray: #bbb;
+      --radius: 18px;
+      --shadow: 0 8px 28px #0006;
+      --pulse: 0 0 15px rgba(255, 152, 0, 0.7);
+      --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #111 70%, #ff9800 100%);
+      font-family: 'Montserrat', Arial, sans-serif;
+      color: #fff;
+      min-height: 100vh;
+      width: 100vw;
+      overflow-x: hidden;
+    }
+    
+    .header {
+      width: 100%;
+      padding: 30px 0 12px 0;
+      text-align: center;
+      background: rgba(0,0,0,0.74);
+      font-size: 2.1em;
+      font-weight: bold;
+      letter-spacing: 2px;
+      box-shadow: 0 2px 16px #ffeb3b33;
+      position: relative;
+      z-index: 10;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 38px auto 0 auto;
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 34px 22px 28px 22px;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+    
+    .container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 184, 0, 0.1) 0%, transparent 70%);
+      z-index: -1;
+      animation: rotate 60s linear infinite;
+    }
+    
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    h1 {
+      margin-bottom: 13px;
+      font-weight: 900;
+      letter-spacing: 0.045em;
+      font-size: 2rem;
+      color: var(--secondary);
+      text-align: center;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .balance-bar {
+      font-size: 1.13rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 25px;
+      background: #222;
+      padding: 12px 16px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 10px #ff980033;
+      word-break: break-word;
+      justify-content: center;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .balance-bar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.7s;
+    }
+    
+    .balance-bar:hover::before {
+      left: 100%;
+    }
+    
+    .balance-bar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px #ff980055;
+    }
+    
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      background: rgba(44, 44, 60, 0.7);
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .stat-value {
+      font-weight: 700;
+      color: var(--secondary);
+    }
+    
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--gray);
+    }
+    
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    
+    .task-card {
+      background: rgba(44,44,60,0.97);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 7px solid var(--primary);
+      transition: var(--transition);
+      box-shadow: 0 2px 8px #0003;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .task-card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        to bottom right,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0) 50%,
+        rgba(255, 255, 255, 0.1) 70%,
+        rgba(255, 255, 255, 0) 100%
+      );
+      transform: rotate(30deg);
+      transition: all 0.7s;
+      opacity: 0;
+    }
+    
+    .task-card:hover::after {
+      opacity: 1;
+      top: -30%;
+      left: -30%;
+    }
+    
+    .task-card.airdrop { border-left-color: var(--secondary);}
+    .task-card.ads { border-left-color: var(--ads);}
+    .task-card.active { border-left-color: var(--active);}
+    
+    .task-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      color: #fff;
+      flex: 1;
+    }
+    
+    .task-type {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: var(--gray);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .task-title {
+      font-size: 1.07rem;
+      font-weight: 600;
+      color: #ffb900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .task-reward {
+      background: #222;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 5px;
+      padding: 2px 10px;
+      margin-left: 8px;
+      display: inline-block;
+      vertical-align: middle;
+      transition: var(--transition);
+    }
+    
+    .task-card:hover .task-reward {
+      transform: scale(1.05);
+      box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+    }
+    
+    .task-desc {
+      font-size: 13px;
+      color: #ffe9b6;
+      margin-top: 3px;
+      max-width: 340px;
+      word-break: break-word;
+      line-height: 1.34;
+    }
+    
+    .task-card.completed {
+      opacity: 0.7;
+      pointer-events: none;
+      background: #222;
+      box-shadow: none;
+    }
+    
+    .task-card.completed::before {
+      content: '✓';
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      color: var(--success);
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+    
+    .task-action {
+      min-width: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+    
+    .task-btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #18181b;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      transition: var(--transition);
+      box-shadow: 0 2px 6px #ff980033;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .task-btn::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: rgba(255, 255, 255, 0.1);
+      transform: rotate(45deg);
+      transition: all 0.5s;
+      pointer-events: none;
+    }
+    
+    .task-btn:hover::after {
+      left: 100%;
+    }
+    
+    .task-btn:disabled, .task-card.completed .task-btn {
+      background: #444;
+      color: #bbb;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    
+    .task-btn.social { background: var(--secondary);}
+    .task-btn.ads { background: var(--ads);}
+    .task-btn.active { background: var(--active);}
+    
+    .task-btn.pulse {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+    }
+    
+    /* Popup */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 32px;
+      right: 32px;
+      z-index: 1002;
+      background: var(--panel);
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 17px 34px;
+      box-shadow: 0 6px 24px #0008;
+      border: 2px solid #ffd670;
+      opacity: 0;
+      transition: var(--transition);
+      backdrop-filter: blur(5px);
+    }
+    
+    .popup.success { border-color: var(--success); color: var(--success);}
+    .popup.error { border-color: var(--danger); color: var(--danger);}
+    .popup.show { 
+      display: block;
+      opacity: 0.98;
+      animation: slideIn 0.3s forwards, fadeOut 0.3s 2s forwards;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 0.98; }
+    }
+    
+    @keyframes fadeOut {
+      to { opacity: 0; }
+    }
+    
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      backdrop-filter: blur(5px);
+    }
+    
+    .modal.show {
+      display: flex;
+      animation: fadeIn 0.3s;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .modal-content {
+      background: var(--panel);
+      border-radius: 13px;
+      padding: 28px 36px;
+      min-width: 320px;
+      box-shadow: 0 9px 32px #0007;
+      position: relative;
+      max-width: 94vw;
+      color: #fff;
+      transform: scale(0.9);
+      animation: modalScaleIn 0.3s forwards;
+    }
+    
+    @keyframes modalScaleIn {
+      to { transform: scale(1); }
+    }
+    
+    .modal-header {
+      font-size: 1.16rem;
+      font-weight: 900;
+      margin-bottom: 13px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .modal-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+    
+    .modal-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: var(--transition);
+    }
+    
+    .modal-list li:hover {
+      background: rgba(255, 152, 0, 0.1);
+    }
+    
+    .modal-list a {
+      color: var(--secondary);
+      font-weight: 700;
+      text-decoration: none;
+      font-size: 1.03rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition);
+    }
+    
+    .modal-list a:hover {
+      color: var(--primary);
+    }
+    
+    .modal-list i {
+      font-size: 1.2em;
+    }
+    
+    .close-modal {
+      background: linear-gradient(90deg, var(--secondary) 40%, var(--primary) 100%);
+      border: none;
+      padding: 12px 26px;
+      border-radius: 7px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 18px;
+      font-size: 1rem;
+      color: var(--text-dark);
+      transition: var(--transition);
+      width: 100%;
+      box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+    }
+    
+    .close-modal:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+    }
+    
+    /* Ad Modal */
+    .ad-container {
+      width: 100%;
+      height: 200px;
+      background: #222;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 15px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .ad-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 4px;
+      background: var(--primary);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    
+    .ad-content {
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .ad-content i {
+      font-size: 3rem;
+      color: var(--primary);
+      margin-bottom: 15px;
+    }
+    
+    /* Footer navigation */
+    .footer {
+      width: 100%;
+      display: flex;
+      justify-content: space-evenly;
+      gap: 0;
+      padding: 18px 0;
+      background: rgba(255, 184, 0, 0.09);
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -4px 24px #ff980022;
+      z-index: 999;
+      backdrop-filter: blur(5px);
+    }
+    
+    .footer button {
+      background: #fff;
+      color: #ff9800;
+      border: none;
+      border-radius: 50%;
+      width: 52px;
+      height: 52px;
+      font-size: 1.5em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(34, 34, 34, 0.13);
+      transition: var(--transition);
+      cursor: pointer;
+      position: relative;
+    }
+    
+    .footer button:hover {
+      background: #ff9800;
+      color: #fff;
+      transform: translateY(-5px);
+    }
+    
+    .footer button.active {
+      background: #ff9800;
+      color: #fff;
+    }
+    
+    .footer button .tooltip {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 0.8em;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: var(--transition);
+    }
+    
+    .footer button:hover .tooltip {
+      opacity: 1;
+      bottom: 65px;
+    }
+    
+    /* Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Progress Bar */
+    .progress-container {
+      width: 100%;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      margin: 15px 0;
+      overflow: hidden;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--secondary), var(--primary));
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    
+    /* Responsive */
+    @media (max-width: 700px) {
+      .container { 
+        padding: 24px 15px;
+        margin: 20px auto;
+        border-radius: 0;
+      }
+      
+      .modal-content { 
+        padding: 20px;
+        width: 90%;
+      }
+      
+      h1 { font-size: 1.5rem;}
+      
+      .balance-bar {
+        flex-direction: column;
+        gap: 5px;
+        text-align: center;
+      }
+      
+      .task-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      
+      .task-action {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+    
+    @media (max-width: 430px) {
+      h1 { font-size: 1.3rem;}
+      .balance-bar { font-size: 0.97rem;}
+      
+      .header {
+        font-size: 1.5rem;
+        padding: 20px 0 10px 0;
+      }
+      
+      .footer button {
+        width: 45px;
+        height: 45px;
+        font-size: 1.3em;
+      }
+    }
+    
+    /* Confetti */
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background-color: #f00;
+      opacity: 0;
+      z-index: 2001;
+      animation: confetti-fall 3s linear forwards;
+    }
+    
+    @keyframes confetti-fall {
+      0% {
+        transform: translateY(-100vh) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+    
+    /* Floating Particles */
+    .particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 152, 0, 0.5);
+      border-radius: 50%;
+      animation: float 15s infinite linear;
+    }
+    
+    @keyframes float {
+      0% {
+        transform: translateY(100vh) translateX(0);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100vh) translateX(100px);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+  
+  <div class="header">SUPREMEAMER COIN TASKS 📜</div>
+  
+  <div class="container">
+    <h1>Complete Tasks, Earn <span style="color:#fdc500;">SupremeAmer</span> Coins!</h1>
+    
+    <div class="balance-bar">
+      <span>Your Balance:</span>
+      <span id="balance">0</span>
+      <span style="font-size:0.98em;">SupremeAmer Coin</span>
+    </div>
+    
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-value" id="completedTasks">0</span>
+        <span class="stat-label">Completed</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="totalRewards">0</span>
+        <span class="stat-label">Total Earned</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="availableTasks">0</span>
+        <span class="stat-label">Available</span>
+      </div>
+    </div>
+    
+    <div class="task-list" id="taskList"></div>
+  </div>
+  
+  <!-- Popups -->
+  <div class="popup success" id="success-popup"></div>
+  <div class="popup error" id="error-popup"></div>
+  
+  <!-- Social Modal -->
+  <div class="modal" id="social-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <i class="fas fa-users"></i>
+        <span>Follow Our Communities</span>
+      </div>
+      <ul class="modal-list">
+        <li>
+          <a href="https://twitter.com/supremeamer" target="_blank" id="twitter-link">
+            <i class="fab fa-twitter"></i> Twitter
+          </a>
+        </li>
+        <li>
+          <a href="https://t.me/supremeamer" target="_blank" id="telegram-link">
+            <i class="fab fa-telegram"></i> Telegram
+          </a>
+        </li>
+        <li>
+          <a href="https://discord.gg/supremeamer" target="_blank" id="discord-link">
+            <i class="fab fa-discord"></i> Discord
+          </a>
+        </li>
+      </ul>
+      <div class="progress-container">
+        <div class="progress-bar" id="social-progress" style="width: 0%"></div>
+      </div>
+      <button class="close-modal" onclick="closeSocialModal()">
+        <i class="fas fa-check"></i> Done
+      </button>
+    </div>
+  </div>
+  
+  <!-- Ad Modal -->
+  <div class="modal" id="ad-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <i class="fas fa-ad"></i>
+        <span>Watch Ad to Earn Coins</span>
+      </div>
+      
+      <div class="ad-container" id="adContainer">
+        <div class="ad-content">
+          <i class="fas fa-play-circle"></i>
+          <h3>Sponsored Content</h3>
+          <p>Watch this ad to earn SupremeAmer coins</p>
+        </div>
+        <div class="ad-progress" id="adProgress"></div>
+      </div>
+      
+      <button class="close-modal" onclick="closeAdModal()" id="adCloseBtn" disabled>
+        <i class="fas fa-times"></i> Skip Ad (5s)
+      </button>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <button onclick="window.location.href='index.html'" title="Home">
+      <i class="fas fa-home"></i>
+      <span class="tooltip">Home</span>
+    </button>
+    <button onclick="window.location.href='Task.html'" title="Tasks" class="active">
+      <i class="fas fa-tasks"></i>
+      <span class="tooltip">Tasks</span>
+    </button>
+    <button onclick="window.location.href='wallet.html'" title="Wallet">
+      <i class="fas fa-wallet"></i>
+      <span class="tooltip">Wallet</span>
+    </button>
+    <button onclick="window.location.href='dapp.html'" title="DApp">
+      <i class="fas fa-gamepad"></i>
+      <span class="tooltip">DApp</span>
+    </button>
+  </div>
+  
+  <div id="confetti-container"></div>
+  
+  <script>
+    // --- Constants ---
+    const BALANCE_KEY = 'minedCoins'; // Match mining game's key
+    const MINING_SPEED_KEY = 'miningSpeed';
+    const COMPLETED_TASKS_KEY = 'completedTasks';
+    const SOCIAL_FOLLOWED_KEY = 'socialFollowed';
+    const TELEGRAM_JOINED_KEY = 'telegramJoined';
+    const DISCORD_JOINED_KEY = 'discordJoined';
+    const INVITED_FRIENDS_KEY = 'invitedFriends';
+    const TOTAL_REWARDS_KEY = 'totalTaskRewards';
+    
+    // --- Task Definitions ---
+    const tasks = [
+      // --- AIRDROP TASKS ---
+      {
+        id: 'upgrade-speed',
+        type: 'airdrop',
+        title: 'Upgrade mining speed',
+        description: 'Upgrade your mining speed to at least 0.05 SA/sec',
+        reward: 500,
+        verify: () => {
+          const speed = parseFloat(localStorage.getItem(MINING_SPEED_KEY) || 0.0002);
+          return speed >= 0.05;
+        },
+        icon: 'fas fa-bolt'
+      },
+      {
+        id: 'invite-5-friends',
+        type: 'airdrop',
+        title: 'Invite 5 friends',
+        description: 'Invite friends to join SupremeAmer (check invites in your wallet)',
+        reward: 100,
+        verify: () => {
+          const invites = parseInt(localStorage.getItem(INVITED_FRIENDS_KEY) || 0);
+          return invites >= 5;
+        },
+        icon: 'fas fa-user-plus'
+      },
+      {
+        id: 'follow-communities',
+        type: 'airdrop',
+        title: 'Follow our communities',
+        description: 'Follow us on Twitter, Telegram, and Discord',
+        reward: 50,
+        isSocial: true,
+        verify: () => {
+          return localStorage.getItem(SOCIAL_FOLLOWED_KEY) === 'true';
+        },
+        icon: 'fas fa-users'
+      },
+      {
+        id: 'join-telegram',
+        type: 'airdrop',
+        title: 'Join Telegram',
+        description: 'Be part of our Telegram community',
+        reward: 50,
+        isSocial: true,
+        verify: () => {
+          return localStorage.getItem(TELEGRAM_JOINED_KEY) === 'true';
+        },
+        icon: 'fab fa-telegram'
+      },
+      {
+        id: 'join-discord',
+        type: 'airdrop',
+        title: 'Join Discord',
+        description: 'Connect with us on Discord',
+        reward: 50,
+        isSocial: true,
+        verify: () => {
+          return localStorage.getItem(DISCORD_JOINED_KEY) === 'true';
+        },
+        icon: 'fab fa-discord'
+      },
+      
+      // --- ADS TASKS ---
+      ...Array.from({length: 7}, (_, i) => ({
+        id: `ads-task-${i+1}`,
+        type: 'ads',
+        title: `Watch Ad #${i+1}`,
+        description: 'Watch a sponsored video to earn coins',
+        reward: 30,
+        verify: () => {
+          return localStorage.getItem(`adWatched${i+1}`) === 'true';
+        },
+        icon: 'fas fa-ad'
+      })),
+      
+      // --- ACTIVE TASKS ---
+      ...Array.from({length: 8}, (_, i) => ({
+        id: `active-task-${i+1}`,
+        type: 'active',
+        title: `Daily Task #${i+1}`,
+        description: 'Complete this daily engagement task',
+        reward: 10,
+        verify: () => {
+          return localStorage.getItem(`activeTask${i+1}`) === 'true';
+        },
+        icon: 'fas fa-check-circle'
+      })),
+      
+      // --- EXTRA TASKS ---
+      ...Array.from({length: 5}, (_, i) => ({
+        id: `extra-task-${i+1}`,
+        type: 'active',
+        title: `Bonus Task #${i+1}`,
+        description: 'Special limited-time task',
+        reward: 15,
+        verify: () => {
+          return localStorage.getItem(`extraTask${i+1}`) === 'true';
+        },
+        icon: 'fas fa-star'
+      }))
+    ];
+
+    // --- State Management ---
+    let completedTasks = JSON.parse(localStorage.getItem(COMPLETED_TASKS_KEY) || '{}');
+    let currentAdTaskId = null;
+    let adInterval = null;
+    let adTimeLeft = 5;
+    
+    // --- DOM Elements ---
+    const taskListEl = document.getElementById('taskList');
+    const balanceEl = document.getElementById('balance');
+    const completedTasksEl = document.getElementById('completedTasks');
+    const totalRewardsEl = document.getElementById('totalRewards');
+    const availableTasksEl = document.getElementById('availableTasks');
+    const socialModalEl = document.getElementById('social-modal');
+    const adModalEl = document.getElementById('ad-modal');
+    const adProgressEl = document.getElementById('adProgress');
+    const adCloseBtnEl = document.getElementById('adCloseBtn');
+    const socialProgressEl = document.getElementById('social-progress');
+    
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+      renderBalance();
+      renderStats();
+      renderTasks();
+      createParticles();
+      
+      // Initialize balance if not exists
+      if (!localStorage.getItem(BALANCE_KEY)) {
+        localStorage.setItem(BALANCE_KEY, '0');
+      }
+      
+      // Initialize total rewards if not exists
+      if (!localStorage.getItem(TOTAL_REWARDS_KEY)) {
+        localStorage.setItem(TOTAL_REWARDS_KEY, '0');
+      }
+      
+      // Check for completed tasks
+      checkCompletedTasks();
+      
+      // Update social progress
+      updateSocialProgress();
+    });
+    
+    // --- Rendering Functions ---
+    function renderBalance() {
+      const balance = parseFloat(localStorage.getItem(BALANCE_KEY) || '0');
+      balanceEl.textContent = balance.toFixed(4);
+    }
+    
+    function renderStats() {
+      // Count completed tasks
+      const completedCount = Object.keys(completedTasks).filter(id => completedTasks[id]).length;
+      completedTasksEl.textContent = completedCount;
+      
+      // Calculate total rewards
+      const totalRewards = parseFloat(localStorage.getItem(TOTAL_REWARDS_KEY) || '0');
+      totalRewardsEl.textContent = totalRewards.toFixed(2);
+      
+      // Calculate available tasks
+      const availableCount = tasks.length - completedCount;
+      availableTasksEl.textContent = availableCount;
+    }
+    
+    function renderTasks() {
+      taskListEl.innerHTML = '';
+      
+      // Sort tasks by completion status (incomplete first)
+      const sortedTasks = [...tasks].sort((a, b) => {
+        const aCompleted = completedTasks[a.id];
+        const bCompleted = completedTasks[b.id];
+        
+        if (aCompleted && !bCompleted) return 1;
+        if (!aCompleted && bCompleted) return -1;
+        return 0;
+      });
+      
+      sortedTasks.forEach(task => {
+        const isCompleted = completedTasks[task.id];
+        const isVerifiable = task.verify && task.verify();
+        
+        const taskEl = document.createElement('div');
+        taskEl.className = `task-card ${task.type}${isCompleted ? ' completed' : ''}`;
+        taskEl.innerHTML = `
+          <div class="task-info">
+            <div class="task-type">
+              <i class="${task.icon || 'fas fa-tasks'}"></i>
+              ${task.type === 'airdrop' ? 'Airdrop' : task.type === 'ads' ? 'Ad' : 'Active'} Task
+            </div>
+            <div class="task-title">${task.title}
+              <span class="task-reward">+${task.reward} SA</span>
+            </div>
+            <div class="task-desc">${task.description}</div>
+          </div>
+          <div class="task-action">
+            <button class="task-btn ${task.isSocial ? 'social' : task.type} ${isVerifiable && !isCompleted ? 'pulse' : ''}" 
+              data-task="${task.id}"
+              ${isCompleted ? 'disabled' : ''}>
+              ${isCompleted ? 'Completed' : 
+               (task.isSocial ? 'Show Socials' : 
+                (task.type === 'ads' ? 'Watch Ad' : 'Complete'))}
+            </button>
+          </div>
+        `;
+        
+        taskListEl.appendChild(taskEl);
+      });
+    }
+    
+    // --- Task Completion ---
+    function checkCompletedTasks() {
+      tasks.forEach(task => {
+        if (!completedTasks[task.id] && task.verify && task.verify()) {
+          completeTask(task.id, task.reward);
+        }
+      });
+    }
+    
+    function completeTask(taskId, reward) {
+      if (completedTasks[taskId]) return;
+      
+      completedTasks[taskId] = true;
+      localStorage.setItem(COMPLETED_TASKS_KEY, JSON.stringify(completedTasks));
+      
+      // Add reward to balance
+      let balance = parseFloat(localStorage.getItem(BALANCE_KEY) || '0');
+      balance += reward;
+      localStorage.setItem(BALANCE_KEY, balance.toString());
+      
+      // Update total rewards
+      let totalRewards = parseFloat(localStorage.getItem(TOTAL_REWARDS_KEY) || '0');
+      totalRewards += reward;
+      localStorage.setItem(TOTAL_REWARDS_KEY, totalRewards.toString());
+      
+      // Update UI
+      renderBalance();
+      renderStats();
+      renderTasks();
+      
+      // Show success message
+      showPopup('success', `+${reward} SA earned!`);
+      
+      // Celebrate!
+      createConfetti();
+    }
+    
+    // --- Popup Functions ---
+    function showPopup(type, message) {
+      const popup = document.getElementById(`${type}-popup`);
+      popup.textContent = message;
+      popup.classList.add('show');
+      
+      setTimeout(() => {
+        popup.classList.remove('show');
+      }, 3000);
+    }
+    
+    // --- Modal Functions ---
+    function openSocialModal(taskId) {
+      socialModalEl.setAttribute('data-taskid', taskId);
+      socialModalEl.classList.add('show');
+      
+      // Update progress bar
+      updateSocialProgress();
+    }
+    
+    function updateSocialProgress() {
+      const socialTasks = ['follow-communities', 'join-telegram', 'join-discord'];
+      let completedCount = 0;
+      
+      socialTasks.forEach(taskId => {
+        if (completedTasks[taskId]) completedCount++;
+      });
+      
+      const progress = (completedCount / socialTasks.length) * 100;
+      socialProgressEl.style.width = `${progress}%`;
+    }
+    
+    function closeSocialModal() {
+      const taskId = socialModalEl.getAttribute('data-taskid');
+      socialModalEl.classList.remove('show');
+      
+      // Mark social tasks as completed if they're verified
+      if (taskId === 'follow-communities' && !completedTasks[taskId]) {
+        localStorage.setItem(SOCIAL_FOLLOWED_KEY, 'true');
+        completeTask(taskId, tasks.find(t => t.id === taskId).reward);
+      }
+      else if (taskId === 'join-telegram' && !completedTasks[taskId]) {
+        localStorage.setItem(TELEGRAM_JOINED_KEY, 'true');
+        completeTask(taskId, tasks.find(t => t.id === taskId).reward);
+      }
+      else if (taskId === 'join-discord' && !completedTasks[taskId]) {
+        localStorage.setItem(DISCORD_JOINED_KEY, 'true');
+        completeTask(taskId, tasks.find(t => t.id === taskId).reward);
+      }
+      
+      // Update social progress
+      updateSocialProgress();
+    }
+    
+    function openAdModal(taskId) {
+      currentAdTaskId = taskId;
+      adTimeLeft = 5;
+      adProgressEl.style.width = '0%';
+      adCloseBtnEl.disabled = true;
+      adCloseBtnEl.innerHTML = `<i class="fas fa-times"></i> Skip Ad (${adTimeLeft}s)`;
+      
+      // Start ad timer
+      adInterval = setInterval(() => {
+        adTimeLeft--;
+        const progress = ((5 - adTimeLeft) / 5) * 100;
+        adProgressEl.style.width = `${progress}%`;
+        adCloseBtnEl.innerHTML = `<i class="fas fa-times"></i> Skip Ad (${adTimeLeft}s)`;
+        
+        if (adTimeLeft <= 0) {
+          closeAdModal(true);
+        }
+      }, 1000);
+      
+      adModalEl.classList.add('show');
+    }
+    
+    function closeAdModal(watchedFullAd = false) {
+      clearInterval(adInterval);
+      adModalEl.classList.remove('show');
+      
+      if (watchedFullAd && currentAdTaskId && !completedTasks[currentAdTaskId]) {
+        const adNumber = currentAdTaskId.split('-').pop();
+        localStorage.setItem(`adWatched${adNumber}`, 'true');
+        completeTask(currentAdTaskId, tasks.find(t => t.id === currentAdTaskId).reward);
+      }
+      
+      currentAdTaskId = null;
+    }
+    
+    // --- Event Handlers ---
+    taskListEl.addEventListener('click', (e) => {
+      const taskBtn = e.target.closest('.task-btn');
+      if (!taskBtn || taskBtn.disabled) return;
+      
+      const taskId = taskBtn.getAttribute('data-task');
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      
+      if (task.isSocial) {
+        openSocialModal(taskId);
+      } 
+      else if (task.type === 'ads') {
+        openAdModal(taskId);
+      } 
+      else {
+        // For active tasks, mark as completed if verified
+        if (task.verify && task.verify()) {
+          localStorage.setItem(`activeTask${taskId.split('-').pop()}`, 'true');
+          completeTask(taskId, task.reward);
+        } else {
+          showPopup('error', 'Please complete the task requirements first');
+        }
+      }
+    });
+    
+    adCloseBtnEl.addEventListener('click', () => {
+      if (adTimeLeft <= 0) {
+        closeAdModal(true);
+      }
+    });
+    
+    // --- Confetti Effect ---
+    function createConfetti() {
+      const container = document.getElementById('confetti-container');
+      const colors = ['#ff9800', '#fdc500', '#ff3333', '#4CAF50', '#2196F3'];
+      
+      for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        
+        // Random position
+        confetti.style.left = `${Math.random() * 100}vw`;
+        
+        // Random size
+        const size = Math.random() * 10 + 5;
+        confetti.style.width = `${size}px`;
+        confetti.style.height = `${size}px`;
+        
+        // Random shape
+        if (Math.random() > 0.5) {
+          confetti.style.borderRadius = '50%';
+        }
+        
+        // Random color
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        
+        // Random animation duration
+        const duration = Math.random() * 3 + 2;
+        confetti.style.animationDuration = `${duration}s`;
+        
+        container.appendChild(confetti);
+        
+        // Remove after animation
+        setTimeout(() => {
+          confetti.remove();
+        }, duration * 1000);
+      }
+    }
+    
+    // --- Particles Effect ---
+    function createParticles() {
+      const particlesContainer = document.getElementById('particles');
+      const particleCount = 30;
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        // Random position
+        particle.style.left = `${Math.random() * 100}vw`;
+        
+        // Random size
+        const size = Math.random() * 3 + 1;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        
+        // Random opacity
+        particle.style.opacity = Math.random() * 0.5 + 0.2;
+        
+        // Random animation delay and duration
+        const delay = Math.random() * 15;
+        const duration = Math.random() * 10 + 15;
+        particle.style.animationDelay = `${delay}s`;
+        particle.style.animationDuration = `${duration}s`;
+        
+        particlesContainer.appendChild(particle);
+      }
+    }
+    
+    // --- Debug Helpers ---
+    window.debugResetTasks = function() {
+      localStorage.removeItem(COMPLETED_TASKS_KEY);
+      localStorage.removeItem(TOTAL_REWARDS_KEY);
+      completedTasks = {};
+      renderTasks();
+      renderStats();
+      showPopup('success', 'Tasks reset!');
+    };
+    
+    window.debugAddCoins = function(amount) {
+      let balance = parseFloat(localStorage.getItem(BALANCE_KEY) || '0');
+      balance += amount;
+      localStorage.setItem(BALANCE_KEY, balance.toString());
+      renderBalance();
+      showPopup('success', `Added ${amount} SA!`);
+    };
+  </script>
+</body>
+</html>
