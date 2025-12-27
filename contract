@@ -1,0 +1,629 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+/**
+ * @title SupremeAmerToken
+ * @dev Complete all-in-one token contract with mining, auto-withdraw, and vesting features
+ * Total Supply: 1,000,000 SA
+ * Distribution: 30% Vested, 10% Mining, 40% Liquidity, 15% Team, 5% Marketing
+ * Daily Mining Reward: 0.006048 SA per user
+ * Auto-Withdraw Threshold: 150,000 SA (15% of total supply)
+ */
+contract SupremeAmerToken is ERC20, Ownable, Pausable, ReentrancyGuard {
+    
+    // ============================
+    // TOKEN CONFIGURATION
+    // ============================
+    uint256 public constant TOTAL_SUPPLY = 1000000 * 10**18; // 1,000,000 SA
+    uint256 public constant DECIMALS = 18;
+    
+    // Distribution percentages
+    uint256 public constant VESTED_PERCENTAGE = 30;   // 300,000 SA
+    uint256 public constant MINING_PERCENTAGE = 10;   // 100,000 SA
+    uint256 public constant LIQUIDITY_PERCENTAGE = 40; // 400,000 SA
+    uint256 public constant TEAM_PERCENTAGE = 15;     // 150,000 SA
+    uint256 public constant MARKETING_PERCENTAGE = 5; // 50,000 SA
+    
+    // Calculated amounts
+    uint256 public constant VESTED_AMOUNT = (TOTAL_SUPPLY * VESTED_PERCENTAGE) / 100;
+    uint256 public constant MINING_AMOUNT = (TOTAL_SUPPLY * MINING_PERCENTAGE) / 100;
+    uint256 public constant LIQUIDITY_AMOUNT = (TOTAL_SUPPLY * LIQUIDITY_PERCENTAGE) / 100;
+    uint256 public constant TEAM_AMOUNT = (TOTAL_SUPPLY * TEAM_PERCENTAGE) / 100;
+    uint256 public constant MARKETING_AMOUNT = (TOTAL_SUPPLY * MARKETING_PERCENTAGE) / 100;
+    
+    // Wallet addresses
+    address public vestedWallet;
+    address public miningWallet;
+    address public liquidityWallet;
+    address public teamWallet;
+    address public marketingWallet;
+    
+    // ============================
+    // MINING SYSTEM
+    // ============================
+    struct Miner {
+        uint256 lastClaimTime;
+        uint256 totalClaimed;
+        uint256 miningPower; // 1 = normal, 2 = premium, 3 = ultra
+        uint256 upgradeExpiry;
+        bool isRegistered;
+    }
+    
+    mapping(address => Miner) public miners;
+    uint256 public totalMiners;
+    address[] public allMiners;
+    
+    // Daily reward: 0.006048 SA per user
+    uint256 public constant DAILY_REWARD = 6048 * 10**12; // 0.006048 * 10^18
+    uint256 public constant SECONDS_PER_DAY = 86400;
+    
+    // Mining multipliers
+    uint256 public constant NORMAL_MULTIPLIER = 100;    // 1x (100 = 100%)
+    uint256 public constant PREMIUM_MULTIPLIER = 25000; // 250x (25000 = 25000%)
+    uint256 public constant ULTRA_MULTIPLIER = 50000;   // 500x (50000 = 50000%)
+    
+    // Upgrade costs
+    uint256 public premiumUpgradeCost = 0.002 ether;
+    uint256 public ultraUpgradeCost = 0.009 ether;
+    uint256 public constant UPGRADE_DURATION = 360 days;
+    
+    // ============================
+    // AUTO-WITHDRAW SYSTEM
+    // ============================
+    uint256 public autoWithdrawPercentage = 15; // 15% of total supply
+    uint256 public autoWithdrawThreshold; // 150,000 SA
+    bool public autoWithdrawEnabled = true;
+    
+    // ============================
+    // VESTING SYSTEM
+    // ============================
+    uint256 public vestingStartTime;
+    uint256 public vestingDuration = 365 days;
+    uint256 public vestingCliff = 90 days;
+    
+    // ============================
+    // EVENTS
+    // ============================
+    event TokensMined(address indexed miner, uint256 amount);
+    event MiningUpgraded(address indexed miner, uint256 level, uint256 expiry);
+    event AutoWithdrawExecuted(address indexed user, uint256 amount);
+    event VestedTokensReleased(address indexed beneficiary, uint256 amount);
+    event DailyRewardClaimed(address indexed user, uint256 amount);
+    event MiningRegistered(address indexed user);
+    event MiningPoolRefilled(uint256 amount);
+    event WalletUpdated(string walletType, address newAddress);
+    
+    // ============================
+    // MODIFIERS
+    // ============================
+    modifier onlyRegistered() {
+        require(miners[msg.sender].isRegistered, "Not registered for mining");
+        _;
+    }
+    
+    modifier onlyVestedWallet() {
+        require(msg.sender == vestedWallet, "Only vested wallet can call");
+        _;
+    }
+    
+    // ============================
+    // CONSTRUCTOR
+    // ============================
+    constructor(
+        address _vestedWallet,
+        address _miningWallet,
+        address _liquidityWallet,
+        address _teamWallet,
+        address _marketingWallet
+    ) ERC20("SupremeAmer", "SA") {
+        require(_vestedWallet != address(0), "Invalid vested wallet");
+        require(_miningWallet != address(0), "Invalid mining wallet");
+        require(_liquidityWallet != address(0), "Invalid liquidity wallet");
+        require(_teamWallet != address(0), "Invalid team wallet");
+        require(_marketingWallet != address(0), "Invalid marketing wallet");
+        
+        vestedWallet = _vestedWallet;
+        miningWallet = _miningWallet;
+        liquidityWallet = _liquidityWallet;
+        teamWallet = _teamWallet;
+        marketingWallet = _marketingWallet;
+        
+        // Calculate auto-withdraw threshold (15% of total supply)
+        autoWithdrawThreshold = (TOTAL_SUPPLY * autoWithdrawPercentage) / 100;
+        
+        // Set vesting start time
+        vestingStartTime = block.timestamp;
+        
+        // Mint tokens to respective wallets
+        _mint(vestedWallet, VESTED_AMOUNT);
+        _mint(miningWallet, MINING_AMOUNT);
+        _mint(liquidityWallet, LIQUIDITY_AMOUNT);
+        _mint(teamWallet, TEAM_AMOUNT);
+        _mint(marketingWallet, MARKETING_AMOUNT);
+        
+        // Verify total supply
+        require(totalSupply() == TOTAL_SUPPLY, "Total supply mismatch");
+    }
+    
+    // ============================
+    // MINING FUNCTIONS
+    // ============================
+    
+    /**
+     * @dev Register for mining
+     */
+    function registerForMining() external {
+        require(!miners[msg.sender].isRegistered, "Already registered");
+        require(balanceOf(msg.sender) >= 0, "User must have wallet");
+        
+        miners[msg.sender] = Miner({
+            lastClaimTime: block.timestamp,
+            totalClaimed: 0,
+            miningPower: 1, // Normal mining power
+            upgradeExpiry: 0,
+            isRegistered: true
+        });
+        
+        totalMiners++;
+        allMiners.push(msg.sender);
+        
+        emit MiningRegistered(msg.sender);
+    }
+    
+    /**
+     * @dev Claim mining rewards
+     */
+    function claimMiningRewards() external nonReentrant whenNotPaused onlyRegistered returns (uint256) {
+        Miner storage miner = miners[msg.sender];
+        
+        // Calculate time passed since last claim
+        uint256 timePassed = block.timestamp - miner.lastClaimTime;
+        require(timePassed > 0, "No time passed since last claim");
+        
+        // Get mining multiplier
+        uint256 multiplier = _getMiningMultiplier(msg.sender);
+        
+        // Calculate reward: (DAILY_REWARD * multiplier * timePassed) / (SECONDS_PER_DAY * 100)
+        uint256 reward = (DAILY_REWARD * multiplier * timePassed) / (SECONDS_PER_DAY * 100);
+        
+        // Ensure we don't exceed mining pool balance
+        uint256 miningPoolBalance = balanceOf(miningWallet);
+        if (reward > miningPoolBalance) {
+            reward = miningPoolBalance;
+        }
+        
+        require(reward > 0, "No rewards available");
+        
+        // Transfer tokens from mining wallet to miner
+        _transfer(miningWallet, msg.sender, reward);
+        
+        // Update miner statistics
+        miner.totalClaimed += reward;
+        miner.lastClaimTime = block.timestamp;
+        
+        // Check if upgrade expired
+        if (miner.upgradeExpiry > 0 && block.timestamp > miner.upgradeExpiry) {
+            miner.miningPower = 1;
+            miner.upgradeExpiry = 0;
+        }
+        
+        emit TokensMined(msg.sender, reward);
+        emit DailyRewardClaimed(msg.sender, reward);
+        
+        return reward;
+    }
+    
+    /**
+     * @dev Upgrade mining level
+     * @param level 2 for premium, 3 for ultra
+     */
+    function upgradeMining(uint256 level) external payable nonReentrant whenNotPaused onlyRegistered {
+        require(level == 2 || level == 3, "Invalid level (2=premium, 3=ultra)");
+        
+        Miner storage miner = miners[msg.sender];
+        require(miner.miningPower < level, "Already at or above this level");
+        
+        // Check payment
+        if (level == 2) {
+            require(msg.value >= premiumUpgradeCost, "Insufficient BNB for premium");
+            miner.miningPower = 2;
+        } else {
+            require(msg.value >= ultraUpgradeCost, "Insufficient BNB for ultra");
+            miner.miningPower = 3;
+        }
+        
+        // Set upgrade expiry
+        miner.upgradeExpiry = block.timestamp + UPGRADE_DURATION;
+        
+        emit MiningUpgraded(msg.sender, level, miner.upgradeExpiry);
+        
+        // Refund excess payment
+        uint256 requiredAmount = (level == 2) ? premiumUpgradeCost : ultraUpgradeCost;
+        if (msg.value > requiredAmount) {
+            payable(msg.sender).transfer(msg.value - requiredAmount);
+        }
+    }
+    
+    /**
+     * @dev Calculate pending rewards for a user
+     */
+    function calculatePendingRewards(address user) public view returns (uint256) {
+        if (!miners[user].isRegistered) return 0;
+        
+        Miner storage miner = miners[user];
+        if (miner.lastClaimTime == 0) return 0;
+        
+        uint256 timePassed = block.timestamp - miner.lastClaimTime;
+        if (timePassed == 0) return 0;
+        
+        uint256 multiplier = _getMiningMultiplier(user);
+        uint256 reward = (DAILY_REWARD * multiplier * timePassed) / (SECONDS_PER_DAY * 100);
+        
+        // Cap by mining pool balance
+        uint256 miningPoolBalance = balanceOf(miningWallet);
+        return reward > miningPoolBalance ? miningPoolBalance : reward;
+    }
+    
+    /**
+     * @dev Get mining multiplier for user
+     */
+    function _getMiningMultiplier(address user) internal view returns (uint256) {
+        Miner storage miner = miners[user];
+        
+        if (miner.miningPower == 3) {
+            return ULTRA_MULTIPLIER;
+        } else if (miner.miningPower == 2) {
+            return PREMIUM_MULTIPLIER;
+        } else {
+            return NORMAL_MULTIPLIER;
+        }
+    }
+    
+    // ============================
+    // AUTO-WITHDRAW FUNCTIONS
+    // ============================
+    
+    /**
+     * @dev Execute auto-withdraw when threshold reached
+     */
+    function executeAutoWithdraw() external nonReentrant whenNotPaused returns (bool) {
+        require(autoWithdrawEnabled, "Auto-withdraw disabled");
+        
+        uint256 userBalance = balanceOf(msg.sender);
+        require(userBalance >= autoWithdrawThreshold, "Below threshold");
+        
+        // Calculate withdraw amount (15% of balance)
+        uint256 withdrawAmount = (userBalance * autoWithdrawPercentage) / 100;
+        
+        // Cap at threshold
+        if (withdrawAmount > autoWithdrawThreshold) {
+            withdrawAmount = autoWithdrawThreshold;
+        }
+        
+        require(withdrawAmount > 0, "Nothing to withdraw");
+        
+        // Transfer to owner
+        _transfer(msg.sender, owner(), withdrawAmount);
+        
+        emit AutoWithdrawExecuted(msg.sender, withdrawAmount);
+        return true;
+    }
+    
+    /**
+     * @dev Check if user is eligible for auto-withdraw
+     */
+    function checkAutoWithdrawEligibility(address user) external view returns (bool) {
+        if (!autoWithdrawEnabled) return false;
+        return balanceOf(user) >= autoWithdrawThreshold;
+    }
+    
+    // ============================
+    // VESTING FUNCTIONS
+    // ============================
+    
+    /**
+     * @dev Release vested tokens
+     */
+    function releaseVestedTokens() external nonReentrant whenNotPaused onlyVestedWallet returns (uint256) {
+        require(block.timestamp >= vestingStartTime + vestingCliff, "Cliff not ended");
+        
+        uint256 vestedTime = block.timestamp - vestingStartTime;
+        if (vestedTime > vestingDuration) {
+            vestedTime = vestingDuration;
+        }
+        
+        // Calculate total releasable
+        uint256 totalReleasable = (VESTED_AMOUNT * vestedTime) / vestingDuration;
+        
+        // Calculate already released
+        uint256 alreadyReleased = VESTED_AMOUNT - balanceOf(vestedWallet);
+        
+        // Calculate amount to release now
+        uint256 amountToRelease = totalReleasable - alreadyReleased;
+        require(amountToRelease > 0, "No tokens to release");
+        
+        // Transfer to owner
+        _transfer(vestedWallet, owner(), amountToRelease);
+        
+        emit VestedTokensReleased(msg.sender, amountToRelease);
+        return amountToRelease;
+    }
+    
+    /**
+     * @dev Check releasable vested amount
+     */
+    function getReleasableVestedAmount() external view returns (uint256) {
+        if (block.timestamp < vestingStartTime + vestingCliff) {
+            return 0;
+        }
+        
+        uint256 vestedTime = block.timestamp - vestingStartTime;
+        if (vestedTime > vestingDuration) {
+            vestedTime = vestingDuration;
+        }
+        
+        uint256 totalReleasable = (VESTED_AMOUNT * vestedTime) / vestingDuration;
+        uint256 alreadyReleased = VESTED_AMOUNT - balanceOf(vestedWallet);
+        
+        if (totalReleasable > alreadyReleased) {
+            return totalReleasable - alreadyReleased;
+        }
+        return 0;
+    }
+    
+    // ============================
+    // VIEW FUNCTIONS
+    // ============================
+    
+    /**
+     * @dev Get miner statistics
+     */
+    function getMinerStats(address user) external view returns (
+        bool isRegistered,
+        uint256 miningPower,
+        uint256 lastClaimTime,
+        uint256 totalClaimed,
+        uint256 upgradeExpiry,
+        uint256 pendingRewards,
+        uint256 dailyReward,
+        bool isUpgradeActive
+    ) {
+        Miner storage miner = miners[user];
+        uint256 multiplier = _getMiningMultiplier(user);
+        uint256 daily = (DAILY_REWARD * multiplier) / 100;
+        bool upgradeActive = miner.upgradeExpiry > block.timestamp;
+        
+        return (
+            miner.isRegistered,
+            miner.miningPower,
+            miner.lastClaimTime,
+            miner.totalClaimed,
+            miner.upgradeExpiry,
+            calculatePendingRewards(user),
+            daily,
+            upgradeActive
+        );
+    }
+    
+    /**
+     * @dev Get user's daily reward amount
+     */
+    function getUserDailyReward(address user) external view returns (uint256) {
+        if (!miners[user].isRegistered) return 0;
+        uint256 multiplier = _getMiningMultiplier(user);
+        return (DAILY_REWARD * multiplier) / 100;
+    }
+    
+    /**
+     * @dev Get auto-withdraw status
+     */
+    function getAutoWithdrawStatus(address user) external view returns (
+        bool isEligible,
+        uint256 userBalance,
+        uint256 threshold,
+        uint256 withdrawAmount
+    ) {
+        uint256 balance = balanceOf(user);
+        bool eligible = autoWithdrawEnabled && balance >= autoWithdrawThreshold;
+        uint256 amount = 0;
+        
+        if (eligible) {
+            amount = (balance * autoWithdrawPercentage) / 100;
+            if (amount > autoWithdrawThreshold) {
+                amount = autoWithdrawThreshold;
+            }
+        }
+        
+        return (eligible, balance, autoWithdrawThreshold, amount);
+    }
+    
+    /**
+     * @dev Get contract statistics
+     */
+    function getContractStats() external view returns (
+        uint256 totalSupplyAmount,
+        uint256 miningPoolBalance,
+        uint256 vestedPoolBalance,
+        uint256 totalRegisteredMiners,
+        uint256 autoWithdrawThresholdAmount,
+        uint256 dailyRewardPerUser
+    ) {
+        return (
+            TOTAL_SUPPLY,
+            balanceOf(miningWallet),
+            balanceOf(vestedWallet),
+            totalMiners,
+            autoWithdrawThreshold,
+            DAILY_REWARD
+        );
+    }
+    
+    /**
+     * @dev Get all registered miners
+     */
+    function getAllMiners() external view returns (address[] memory) {
+        return allMiners;
+    }
+    
+    // ============================
+    // ADMIN FUNCTIONS
+    // ============================
+    
+    /**
+     * @dev Refill mining pool
+     */
+    function refillMiningPool(uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount must be positive");
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
+        
+        _transfer(msg.sender, miningWallet, amount);
+        emit MiningPoolRefilled(amount);
+    }
+    
+    /**
+     * @dev Set auto-withdraw enabled/disabled
+     */
+    function setAutoWithdrawEnabled(bool enabled) external onlyOwner {
+        autoWithdrawEnabled = enabled;
+    }
+    
+    /**
+     * @dev Set auto-withdraw percentage
+     */
+    function setAutoWithdrawPercentage(uint256 percentage) external onlyOwner {
+        require(percentage > 0 && percentage <= 100, "Invalid percentage");
+        autoWithdrawPercentage = percentage;
+        autoWithdrawThreshold = (TOTAL_SUPPLY * percentage) / 100;
+    }
+    
+    /**
+     * @dev Set upgrade costs
+     */
+    function setUpgradeCosts(uint256 premiumCost, uint256 ultraCost) external onlyOwner {
+        premiumUpgradeCost = premiumCost;
+        ultraUpgradeCost = ultraCost;
+    }
+    
+    /**
+     * @dev Set vesting parameters
+     */
+    function setVestingParameters(uint256 duration, uint256 cliff) external onlyOwner {
+        require(cliff < duration, "Cliff must be less than duration");
+        vestingDuration = duration;
+        vestingCliff = cliff;
+    }
+    
+    /**
+     * @dev Update wallet addresses
+     */
+    function updateWallets(
+        address newVestedWallet,
+        address newMiningWallet,
+        address newLiquidityWallet,
+        address newTeamWallet,
+        address newMarketingWallet
+    ) external onlyOwner {
+        require(newVestedWallet != address(0), "Invalid vested wallet");
+        require(newMiningWallet != address(0), "Invalid mining wallet");
+        require(newLiquidityWallet != address(0), "Invalid liquidity wallet");
+        require(newTeamWallet != address(0), "Invalid team wallet");
+        require(newMarketingWallet != address(0), "Invalid marketing wallet");
+        
+        // Transfer any remaining balances before changing addresses
+        if (balanceOf(vestedWallet) > 0) {
+            _transfer(vestedWallet, newVestedWallet, balanceOf(vestedWallet));
+        }
+        if (balanceOf(miningWallet) > 0) {
+            _transfer(miningWallet, newMiningWallet, balanceOf(miningWallet));
+        }
+        
+        vestedWallet = newVestedWallet;
+        miningWallet = newMiningWallet;
+        liquidityWallet = newLiquidityWallet;
+        teamWallet = newTeamWallet;
+        marketingWallet = newMarketingWallet;
+        
+        emit WalletUpdated("vested", newVestedWallet);
+        emit WalletUpdated("mining", newMiningWallet);
+        emit WalletUpdated("liquidity", newLiquidityWallet);
+        emit WalletUpdated("team", newTeamWallet);
+        emit WalletUpdated("marketing", newMarketingWallet);
+    }
+    
+    /**
+     * @dev Pause contract
+     */
+    function pauseContract() external onlyOwner {
+        _pause();
+    }
+    
+    /**
+     * @dev Unpause contract
+     */
+    function unpauseContract() external onlyOwner {
+        _unpause();
+    }
+    
+    /**
+     * @dev Withdraw BNB from contract
+     */
+    function withdrawBNB() external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No BNB to withdraw");
+        payable(owner()).transfer(balance);
+    }
+    
+    /**
+     * @dev Emergency token withdrawal
+     */
+    function emergencyTokenWithdraw(address tokenAddress, uint256 amount) external onlyOwner {
+        require(tokenAddress != address(this), "Cannot withdraw SA tokens");
+        IERC20 token = IERC20(tokenAddress);
+        require(token.transfer(owner(), amount), "Transfer failed");
+    }
+    
+    /**
+     * @dev Get upgrade time left for user
+     */
+    function getUpgradeTimeLeft(address user) external view returns (uint256) {
+        Miner storage miner = miners[user];
+        if (miner.upgradeExpiry <= block.timestamp) return 0;
+        return miner.upgradeExpiry - block.timestamp;
+    }
+    
+    /**
+     * @dev Get time until next claim
+     */
+    function getTimeUntilNextClaim(address user) external view returns (uint256) {
+        if (!miners[user].isRegistered) return 0;
+        
+        Miner storage miner = miners[user];
+        uint256 timeSinceLastClaim = block.timestamp - miner.lastClaimTime;
+        
+        // Can claim immediately if at least 1 second passed
+        if (timeSinceLastClaim >= 1 seconds) {
+            return 0;
+        } else {
+            return 1 seconds - timeSinceLastClaim;
+        }
+    }
+    
+    // ============================
+    // FALLBACK FUNCTIONS
+    // ============================
+    
+    /**
+     * @dev Receive BNB
+     */
+    receive() external payable {}
+    
+    /**
+     * @dev Fallback function
+     */
+    fallback() external payable {}
+}
