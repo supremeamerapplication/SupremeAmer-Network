@@ -127,8 +127,8 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
     event VestingParametersUpdated(uint256 duration, uint256 cliff);
     event TransfersEnabled(bool enabled);
     event UpgradesEnabled(bool enabled);
-    event RoleGranted(bytes32 role, address account, address sender);
-    event RoleRevoked(bytes32 role, address account, address sender);
+    event RoleAssigned(bytes32 role, address account, address sender);
+    event RoleRemoved(bytes32 role, address account, address sender);
     
     // ============================
     // MODIFIERS
@@ -723,7 +723,8 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
      */
     function withdrawBNB(uint256 amount) external onlySafetyAdmin {
         require(amount <= address(this).balance, "Insufficient BNB balance");
-        payable(msg.sender).transfer(amount);
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "BNB transfer failed");
     }
     
     // ============================
@@ -738,7 +739,7 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
         
         for (uint256 i = 0; i < accounts.length; i++) {
             _grantRole(role, accounts[i]);
-            emit RoleGranted(role, accounts[i], msg.sender);
+            emit RoleAssigned(role, accounts[i], msg.sender);
         }
     }
     
@@ -751,7 +752,7 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
         for (uint256 i = 0; i < accounts.length; i++) {
             if (role != DEFAULT_ADMIN_ROLE || accounts[i] != msg.sender) {
                 _revokeRole(role, accounts[i]);
-                emit RoleRevoked(role, accounts[i], msg.sender);
+                emit RoleRemoved(role, accounts[i], msg.sender);
             }
         }
     }
@@ -799,7 +800,11 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
     /**
      * @dev Override transfer with safety checks
      */
-    function _transfer(address from, address to, uint256 amount) internal virtual override transfersAllowed notBlacklisted(from) notBlacklisted(to) {
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override transfersAllowed notBlacklisted(from) notBlacklisted(to) {
         require(amount > 0, "Transfer amount must be positive");
         require(from != address(0), "Transfer from zero address");
         require(to != address(0), "Transfer to zero address");
@@ -810,7 +815,11 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
     /**
      * @dev Override transferFrom with safety checks
      */
-    function transferFrom(address from, address to, uint256 amount) public virtual override transfersAllowed notBlacklisted(from) notBlacklisted(to) returns (bool) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public override transfersAllowed notBlacklisted(from) notBlacklisted(to) returns (bool) {
         require(amount > 0, "Transfer amount must be positive");
         require(from != address(0), "Transfer from zero address");
         require(to != address(0), "Transfer to zero address");
@@ -821,7 +830,7 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
     /**
      * @dev Override approve with safety checks
      */
-    function approve(address spender, uint256 amount) public virtual override notBlacklisted(msg.sender) returns (bool) {
+    function approve(address spender, uint256 amount) public override notBlacklisted(msg.sender) returns (bool) {
         require(amount > 0, "Approve amount must be positive");
         require(spender != address(0), "Approve to zero address");
         
@@ -829,19 +838,32 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
     }
     
     /**
-     * @dev Override increaseAllowance with safety checks
+     * @dev Increase allowance with safety checks
      */
-    function increaseAllowance(address spender, uint256 addedValue) public virtual override notBlacklisted(msg.sender) returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) public notBlacklisted(msg.sender) returns (bool) {
         require(spender != address(0), "Increase allowance to zero address");
-        return super.increaseAllowance(spender, addedValue);
+        
+        address owner = _msgSender();
+        uint256 currentAllowance = allowance(owner, spender);
+        uint256 newAllowance = currentAllowance.add(addedValue);
+        
+        _approve(owner, spender, newAllowance);
+        return true;
     }
     
     /**
-     * @dev Override decreaseAllowance with safety checks
+     * @dev Decrease allowance with safety checks
      */
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual override notBlacklisted(msg.sender) returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) public notBlacklisted(msg.sender) returns (bool) {
         require(spender != address(0), "Decrease allowance to zero address");
-        return super.decreaseAllowance(spender, subtractedValue);
+        
+        address owner = _msgSender();
+        uint256 currentAllowance = allowance(owner, spender);
+        require(currentAllowance >= subtractedValue, "Decreased allowance below zero");
+        
+        uint256 newAllowance = currentAllowance.sub(subtractedValue);
+        _approve(owner, spender, newAllowance);
+        return true;
     }
     
     // ============================
@@ -914,39 +936,3 @@ contract SupremeAmerToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
     }
 }
 
-/**
- * @title Complete Contract - All Issues Fixed
- * 
- * ✅ COMPLETE FEATURES:
- * 1. All imports properly included
- * 2. OpenZeppelin v4 syntax corrected
- * 3. All functions implemented
- * 4. No compilation errors
- * 5. Comprehensive error handling
- * 6. Complete role management
- * 7. All safety features included
- * 
- * 📦 REQUIRED IMPORTS:
- * - ERC20: Token functionality
- * - AccessControl: Role-based permissions
- * - Pausable: Emergency stops
- * - ReentrancyGuard: Security against reentrancy
- * - SafeMath: Safe arithmetic operations
- * - IERC20: Interface for other tokens
- * 
- * 🚀 DEPLOYMENT READY:
- * 1. Install OpenZeppelin: npm install @openzeppelin/contracts
- * 2. Use Solidity 0.8.32
- * 3. Compile with optimization enabled
- * 4. Deploy with 5 wallet addresses
- * 5. Assign roles after deployment
- * 
- * 🔧 ADDITIONAL FEATURES ADDED:
- * 1. Liquidity admin role
- * 2. Upgrades enabled/disabled control
- * 3. Complete role management functions
- * 4. Better daily claims tracking
- * 5. Sustainability metrics
- * 6. Version information
- * 7. BNB withdrawal function
- */
