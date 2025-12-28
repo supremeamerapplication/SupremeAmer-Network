@@ -1,0 +1,29 @@
+DeclarationError: Undeclared identifier.
+--> supreme/SupremeAmer Token.sol:241:9:
+|
+241 | _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+| ^^^^^^^^^^
+
+DeclarationError: Undeclared identifier.
+--> supreme/SupremeAmer Token.sol:242:9:
+|
+242 | _setupRole(MINING_ADMIN_ROLE, msg.sender);
+| ^^^^^^^^^^
+
+DeclarationError: Undeclared identifier.
+--> supreme/SupremeAmer Token.sol:243:9:
+|
+243 | _setupRole(VESTING_ADMIN_ROLE, msg.sender);
+| ^^^^^^^^^^
+
+DeclarationError: Undeclared identifier.
+--> supreme/SupremeAmer Token.sol:244:9:
+|
+244 | _setupRole(SAFETY_ADMIN_ROLE, msg.sender);
+| ^^^^^^^^^^
+
+DeclarationError: Undeclared identifier.
+--> supreme/SupremeAmer Token.sol:245:9:
+|
+245 | _setupRole(UPGRADE_ADMIN_ROLE, msg.sender);
+| ^^^^^^^^^^
