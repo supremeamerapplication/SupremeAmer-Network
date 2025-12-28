@@ -1,9 +1,4 @@
-help me solve this CompilerError: Stack too deep. Try compiling with `--via-ir` (cli) or the equivalent `viaIR: true` (standard JSON) while enabling the optimizer. Otherwise, try removing local variables.
-   --> supreme/SupremeAmerToken.sol:409:37:
-    |
-409 |             calculatePendingRewards(user),
-    |                                     ^^^^
-    // SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.32;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -388,33 +383,47 @@ contract SupremeAmerToken is ERC20, Ownable, Pausable, ReentrancyGuard {
     // ============================
     
     /**
-     * @dev Get miner statistics
+     * @dev Get core miner statistics (split to avoid "stack too deep")
      */
     function getMinerStats(address user) external view returns (
         bool isRegistered,
         uint256 miningPower,
         uint256 lastClaimTime,
         uint256 totalClaimed,
-        uint256 upgradeExpiry,
-        uint256 pendingRewards,
-        uint256 dailyReward,
-        bool isUpgradeActive
+        uint256 upgradeExpiry
     ) {
         Miner storage miner = miners[user];
-        uint256 multiplier = _getMiningMultiplier(user);
-        uint256 daily = (DAILY_REWARD * multiplier) / 100;
-        bool upgradeActive = miner.upgradeExpiry > block.timestamp;
-        
         return (
             miner.isRegistered,
             miner.miningPower,
             miner.lastClaimTime,
             miner.totalClaimed,
-            miner.upgradeExpiry,
-            calculatePendingRewards(user),
-            daily,
-            upgradeActive
+            miner.upgradeExpiry
         );
+    }
+
+    /**
+     * @dev Get miner reward-related info (split to avoid "stack too deep")
+     */
+    function getMinerRewardInfo(address user) external view returns (
+        uint256 pendingRewards,
+        uint256 dailyReward,
+        bool isUpgradeActive
+    ) {
+        Miner storage miner = miners[user];
+
+        // compute multiplier inline to avoid extra stack pressure from external/internal calls
+        uint256 multiplier;
+        if (miner.miningPower == 3) {
+            multiplier = ULTRA_MULTIPLIER;
+        } else if (miner.miningPower == 2) {
+            multiplier = PREMIUM_MULTIPLIER;
+        } else {
+            multiplier = NORMAL_MULTIPLIER;
+        }
+
+        uint256 daily = (DAILY_REWARD * multiplier) / 100;
+        return (calculatePendingRewards(user), daily, miner.upgradeExpiry > block.timestamp);
     }
     
     /**
