@@ -3,13 +3,14 @@ pragma solidity ^0.8.32;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
 
 /**
  * @title SupremeAmerToken - 20+ Year Sustainable Mining
  * @dev Mining designed to last decades, not years
  * Total Supply: 20,000,000 SA
  */
-contract SupremeAmerToken is ERC20, AccessControl {
+contract SupremeAmerToken is Context, ERC20, AccessControl {
     // ============================
     // ROLES
     // ============================
@@ -28,8 +29,6 @@ contract SupremeAmerToken is ERC20, AccessControl {
     uint256 public constant VESTED_PERCENT = 25;    // 5,000,000 SA
     uint256 public constant MINING_PERCENT = 50;    // 10,000,000 SA
     uint256 public constant LIQUIDITY_PERCENT = 25; // 5,000,000 SA
-    
-    // REMOVED TEAM/MARKETING WALLETS (use vested pool)
     
     // ============================
     // MINING SYSTEM
@@ -92,12 +91,12 @@ contract SupremeAmerToken is ERC20, AccessControl {
     // MODIFIERS
     // ============================
     modifier onlyMiningAdmin() {
-        require(hasRole(MINING_ADMIN_ROLE, msg.sender), "!admin");
+        require(hasRole(MINING_ADMIN_ROLE, _msgSender()), "!admin");
         _;
     }
     
     modifier onlySafetyAdmin() {
-        require(hasRole(SAFETY_ADMIN_ROLE, msg.sender), "!admin");
+        require(hasRole(SAFETY_ADMIN_ROLE, _msgSender()), "!admin");
         _;
     }
     
@@ -137,19 +136,92 @@ contract SupremeAmerToken is ERC20, AccessControl {
         _mint(mining, MINING_AMOUNT);       // 50% - 10,000,000 SA
         _mint(liquidity, LIQUIDITY_AMOUNT); // 25% - 5,000,000 SA
         
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINING_ADMIN_ROLE, msg.sender);
-        _grantRole(SAFETY_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(MINING_ADMIN_ROLE, _msgSender());
+        _grantRole(SAFETY_ADMIN_ROLE, _msgSender());
+    }
+    
+    // ============================
+    // REQUIRED OVERRIDES (FIXES THE ABSTRACT WARNING)
+    // ============================
+    
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) 
+        public 
+        view 
+        virtual 
+        override(ERC20, AccessControl) 
+        returns (bool) 
+    {
+        return super.supportsInterface(interfaceId);
+    }
+    
+    /**
+     * @dev Hook that is called before any transfer of tokens. This includes
+     * minting and burning.
+     *
+     * Calling conditions:
+     *
+     * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
+     * will be transferred to `to`.
+     * - when `from` is zero, `amount` tokens will be minted for `to`.
+     * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
+     * - `from` and `to` are never both zero.
+     */
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        super._beforeTokenTransfer(from, to, amount);
+        
+        // Custom logic: prevent blacklisted addresses from sending/receiving
+        if (from != address(0)) { // not minting
+            require(!blacklist[from], "SupremeAmerToken: sender blacklisted");
+        }
+        if (to != address(0)) { // not burning
+            require(!blacklist[to], "SupremeAmerToken: recipient blacklisted");
+        }
+        
+        // Additional custom logic can be added here
+    }
+    
+    /**
+     * @dev Hook that is called after any transfer of tokens. This includes
+     * minting and burning.
+     */
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        super._afterTokenTransfer(from, to, amount);
+        
+        // You can add post-transfer logic here if needed
+    }
+    
+    /**
+     * @dev Override _spendAllowance to add custom logic
+     */
+    function _spendAllowance(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal virtual override {
+        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
+        super._spendAllowance(owner, spender, amount);
     }
     
     // ============================
     // MINING FUNCTIONS
     // ============================
-    function registerMining() external miningOn notBlacklisted(msg.sender) {
-        require(!miners[msg.sender].isActive, "!active");
-        require(balanceOf(msg.sender) >= 10 * 10**18, "!balance"); // Need 10 SA
+    function registerMining() external miningOn notBlacklisted(_msgSender()) {
+        require(!miners[_msgSender()].isActive, "!active");
+        require(balanceOf(_msgSender()) >= 10 * 10**18, "!balance"); // Need 10 SA
         
-        miners[msg.sender] = Miner({
+        miners[_msgSender()] = Miner({
             lastClaimTime: uint40(block.timestamp),
             upgradeExpiry: 0,
             dailyClaims: 0,
@@ -160,12 +232,12 @@ contract SupremeAmerToken is ERC20, AccessControl {
         });
         
         totalMiners++;
-        emit MiningRegistered(msg.sender);
+        emit MiningRegistered(_msgSender());
     }
     
-    function claimRewards() external notBlacklisted(msg.sender) returns (uint256) {
+    function claimRewards() external notBlacklisted(_msgSender()) returns (uint256) {
         require(miningEnabled, "!mining");
-        Miner storage m = miners[msg.sender];
+        Miner storage m = miners[_msgSender()];
         require(m.isActive, "!active");
         require(m.totalClaimed < MAX_CLAIM, "!max");
         
@@ -193,7 +265,7 @@ contract SupremeAmerToken is ERC20, AccessControl {
         
         require(reward > 0, "!reward");
         
-        _transfer(MINING_WALLET, msg.sender, reward);
+        _transfer(MINING_WALLET, _msgSender(), reward);
         totalDistributed += reward;
         
         m.totalClaimed = uint104(m.totalClaimed + reward);
@@ -205,28 +277,28 @@ contract SupremeAmerToken is ERC20, AccessControl {
             m.upgradeExpiry = 0;
         }
         
-        emit TokensMined(msg.sender, reward);
+        emit TokensMined(_msgSender(), reward);
         return reward;
     }
     
-    function upgradeMining(uint8 newTier) external notBlacklisted(msg.sender) {
+    function upgradeMining(uint8 newTier) external notBlacklisted(_msgSender()) {
         require(newTier == 2 || newTier == 3, "!tier");
         require(miningEnabled, "!mining");
         
-        Miner storage m = miners[msg.sender];
+        Miner storage m = miners[_msgSender()];
         require(m.isActive, "!active");
         require(m.miningTier < newTier, "!upgrade");
         
         uint256 cost = newTier == 2 ? PREMIUM_COST : ULTRA_COST;
-        require(balanceOf(msg.sender) >= cost, "!balance");
+        require(balanceOf(_msgSender()) >= cost, "!balance");
         
-        _transfer(msg.sender, MINING_WALLET, cost);
+        _transfer(_msgSender(), MINING_WALLET, cost);
         
         uint8 oldTier = m.miningTier;
         m.miningTier = newTier;
         m.upgradeExpiry = uint40(block.timestamp + UPGRADE_DURATION);
         
-        emit MiningUpgraded(msg.sender, oldTier, newTier);
+        emit MiningUpgraded(_msgSender(), oldTier, newTier);
     }
     
     function _getMultiplier(uint8 tier, uint40 expiry) internal view returns (uint256) {
@@ -312,8 +384,8 @@ contract SupremeAmerToken is ERC20, AccessControl {
     // ============================
     function refillPool(uint256 amount) external onlyMiningAdmin {
         require(amount > 0, "!amount");
-        require(balanceOf(msg.sender) >= amount, "!balance");
-        _transfer(msg.sender, MINING_WALLET, amount);
+        require(balanceOf(_msgSender()) >= amount, "!balance");
+        _transfer(_msgSender(), MINING_WALLET, amount);
     }
     
     function setMining(bool enabled) external onlySafetyAdmin {
@@ -333,29 +405,120 @@ contract SupremeAmerToken is ERC20, AccessControl {
     }
     
     // ============================
-    // ERC20 OVERRIDES
+    // ERC20 OVERRIDES WITH COMPLETE IMPLEMENTATION
     // ============================
-    function transfer(address to, uint256 amount) public override returns (bool) {
-        require(transfersEnabled, "!transfers");
-        require(!blacklist[msg.sender], "!blacklist");
-        require(!blacklist[to], "!blacklist");
-        require(amount > 0, "!amount");
-        return super.transfer(to, amount);
+    
+    /**
+     * @dev See {IERC20-transfer}.
+     */
+    function transfer(address to, uint256 amount) public virtual override returns (bool) {
+        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
+        address owner = _msgSender();
+        require(!blacklist[owner], "SupremeAmerToken: sender blacklisted");
+        require(!blacklist[to], "SupremeAmerToken: recipient blacklisted");
+        require(amount > 0, "SupremeAmerToken: zero amount");
+        
+        _transfer(owner, to, amount);
+        return true;
     }
     
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        require(transfersEnabled, "!transfers");
-        require(!blacklist[from], "!blacklist");
-        require(!blacklist[to], "!blacklist");
-        require(amount > 0, "!amount");
-        return super.transferFrom(from, to, amount);
+    /**
+     * @dev See {IERC20-transferFrom}.
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
+        require(!blacklist[from], "SupremeAmerToken: sender blacklisted");
+        require(!blacklist[to], "SupremeAmerToken: recipient blacklisted");
+        require(amount > 0, "SupremeAmerToken: zero amount");
+        
+        address spender = _msgSender();
+        _spendAllowance(from, spender, amount);
+        _transfer(from, to, amount);
+        return true;
+    }
+    
+    /**
+     * @dev See {IERC20-approve}.
+     */
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
+        address owner = _msgSender();
+        require(!blacklist[owner], "SupremeAmerToken: owner blacklisted");
+        require(!blacklist[spender], "SupremeAmerToken: spender blacklisted");
+        
+        _approve(owner, spender, amount);
+        return true;
+    }
+    
+    /**
+     * @dev See {IERC20-increaseAllowance}.
+     */
+    function increaseAllowance(address spender, uint256 addedValue) public virtual override returns (bool) {
+        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
+        address owner = _msgSender();
+        require(!blacklist[owner], "SupremeAmerToken: owner blacklisted");
+        require(!blacklist[spender], "SupremeAmerToken: spender blacklisted");
+        
+        _approve(owner, spender, allowance(owner, spender) + addedValue);
+        return true;
+    }
+    
+    /**
+     * @dev See {IERC20-decreaseAllowance}.
+     */
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual override returns (bool) {
+        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
+        address owner = _msgSender();
+        require(!blacklist[owner], "SupremeAmerToken: owner blacklisted");
+        require(!blacklist[spender], "SupremeAmerToken: spender blacklisted");
+        
+        uint256 currentAllowance = allowance(owner, spender);
+        require(currentAllowance >= subtractedValue, "SupremeAmerToken: decreased allowance below zero");
+        unchecked {
+            _approve(owner, spender, currentAllowance - subtractedValue);
+        }
+        
+        return true;
+    }
+    
+    // ============================
+    // ADDITIONAL FUNCTIONS
+    // ============================
+    
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view virtual override returns (string memory) {
+        return "SupremeAmer";
+    }
+    
+    /**
+     * @dev Returns the symbol of the token.
+     */
+    function symbol() public view virtual override returns (string memory) {
+        return "SA";
+    }
+    
+    /**
+     * @dev Returns the decimals of the token.
+     */
+    function decimals() public view virtual override returns (uint8) {
+        return 18;
     }
     
     // ============================
     // FALLBACK
     // ============================
     receive() external payable {
-        revert("!BNB");
+        revert("SupremeAmerToken: does not accept ETH");
+    }
+    
+    fallback() external payable {
+        revert("SupremeAmerToken: invalid call");
     }
 }
 
