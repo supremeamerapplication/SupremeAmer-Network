@@ -3,14 +3,13 @@ pragma solidity ^0.8.32;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 
 /**
  * @title SupremeAmerToken - 20+ Year Sustainable Mining
  * @dev Mining designed to last decades, not years
  * Total Supply: 20,000,000 SA
  */
-contract SupremeAmerToken is Context, ERC20, AccessControl {
+contract SupremeAmerToken is ERC20, AccessControl {
     // ============================
     // ROLES
     // ============================
@@ -22,8 +21,13 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
     // ============================
     uint256 public constant TOTAL_SUPPLY = 20_000_000 * 10**18;
     
-    // REDUCED REWARD: 0.0005 SA/day (92% reduction from original)
-    uint256 public constant DAILY_REWARD = 500 * 10**12; // 0.0005 SA
+    // UPDATED REWARDS AS REQUESTED:
+    // Basic: 0.015 SA/day
+    // Premium: 0.05 SA/day (3.33x basic)
+    // Ultra: 0.085 SA/day (5.67x basic)
+    uint256 public constant DAILY_BASIC_REWARD = 15 * 10**15; // 0.015 SA (15 * 10^15 wei)
+    uint256 public constant DAILY_PREMIUM_REWARD = 50 * 10**15; // 0.05 SA (50 * 10^15 wei)
+    uint256 public constant DAILY_ULTRA_REWARD = 85 * 10**15; // 0.085 SA (85 * 10^15 wei)
     
     // INCREASED MINING POOL: 50% (10,000,000 SA)
     uint256 public constant VESTED_PERCENT = 25;    // 5,000,000 SA
@@ -46,11 +50,6 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
     mapping(address => Miner) public miners;
     uint32 public totalMiners;
     uint256 public totalDistributed;
-    
-    // REDUCED MULTIPLIERS
-    uint16 public constant TIER1_MULT = 100;  // 1x
-    uint16 public constant TIER2_MULT = 130;  // 1.3x
-    uint16 public constant TIER3_MULT = 175;  // 1.75x
     
     // INCREASED UPGRADE COSTS (filter serious users)
     uint256 public constant PREMIUM_COST = 2000 * 10**18; // 2,000 SA
@@ -91,12 +90,12 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
     // MODIFIERS
     // ============================
     modifier onlyMiningAdmin() {
-        require(hasRole(MINING_ADMIN_ROLE, _msgSender()), "!admin");
+        require(hasRole(MINING_ADMIN_ROLE, msg.sender), "!admin");
         _;
     }
     
     modifier onlySafetyAdmin() {
-        require(hasRole(SAFETY_ADMIN_ROLE, _msgSender()), "!admin");
+        require(hasRole(SAFETY_ADMIN_ROLE, msg.sender), "!admin");
         _;
     }
     
@@ -136,92 +135,35 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
         _mint(mining, MINING_AMOUNT);       // 50% - 10,000,000 SA
         _mint(liquidity, LIQUIDITY_AMOUNT); // 25% - 5,000,000 SA
         
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(MINING_ADMIN_ROLE, _msgSender());
-        _grantRole(SAFETY_ADMIN_ROLE, _msgSender());
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINING_ADMIN_ROLE, msg.sender);
+        _grantRole(SAFETY_ADMIN_ROLE, msg.sender);
     }
     
     // ============================
-    // REQUIRED OVERRIDES (FIXES THE ABSTRACT WARNING)
+    // REQUIRED OVERRIDES
     // ============================
     
     /**
-     * @dev See {IERC165-supportsInterface}.
+     * @dev See {IERC165-supportsInterface}
      */
     function supportsInterface(bytes4 interfaceId) 
         public 
         view 
-        virtual 
         override(ERC20, AccessControl) 
         returns (bool) 
     {
         return super.supportsInterface(interfaceId);
     }
     
-    /**
-     * @dev Hook that is called before any transfer of tokens. This includes
-     * minting and burning.
-     *
-     * Calling conditions:
-     *
-     * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-     * will be transferred to `to`.
-     * - when `from` is zero, `amount` tokens will be minted for `to`.
-     * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
-     * - `from` and `to` are never both zero.
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual override {
-        super._beforeTokenTransfer(from, to, amount);
-        
-        // Custom logic: prevent blacklisted addresses from sending/receiving
-        if (from != address(0)) { // not minting
-            require(!blacklist[from], "SupremeAmerToken: sender blacklisted");
-        }
-        if (to != address(0)) { // not burning
-            require(!blacklist[to], "SupremeAmerToken: recipient blacklisted");
-        }
-        
-        // Additional custom logic can be added here
-    }
-    
-    /**
-     * @dev Hook that is called after any transfer of tokens. This includes
-     * minting and burning.
-     */
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual override {
-        super._afterTokenTransfer(from, to, amount);
-        
-        // You can add post-transfer logic here if needed
-    }
-    
-    /**
-     * @dev Override _spendAllowance to add custom logic
-     */
-    function _spendAllowance(
-        address owner,
-        address spender,
-        uint256 amount
-    ) internal virtual override {
-        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
-        super._spendAllowance(owner, spender, amount);
-    }
-    
     // ============================
     // MINING FUNCTIONS
     // ============================
-    function registerMining() external miningOn notBlacklisted(_msgSender()) {
-        require(!miners[_msgSender()].isActive, "!active");
-        require(balanceOf(_msgSender()) >= 10 * 10**18, "!balance"); // Need 10 SA
+    function registerMining() external miningOn notBlacklisted(msg.sender) {
+        require(!miners[msg.sender].isActive, "!active");
+        require(balanceOf(msg.sender) >= 10 * 10**18, "!balance"); // Need 10 SA
         
-        miners[_msgSender()] = Miner({
+        miners[msg.sender] = Miner({
             lastClaimTime: uint40(block.timestamp),
             upgradeExpiry: 0,
             dailyClaims: 0,
@@ -232,12 +174,12 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
         });
         
         totalMiners++;
-        emit MiningRegistered(_msgSender());
+        emit MiningRegistered(msg.sender);
     }
     
-    function claimRewards() external notBlacklisted(_msgSender()) returns (uint256) {
+    function claimRewards() external notBlacklisted(msg.sender) returns (uint256) {
         require(miningEnabled, "!mining");
-        Miner storage m = miners[_msgSender()];
+        Miner storage m = miners[msg.sender];
         require(m.isActive, "!active");
         require(m.totalClaimed < MAX_CLAIM, "!max");
         
@@ -253,8 +195,8 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
         uint256 timePassed = block.timestamp - m.lastClaimTime;
         require(timePassed > 0, "!time");
         
-        uint256 multiplier = _getMultiplier(m.miningTier, m.upgradeExpiry);
-        uint256 dailyReward = (DAILY_REWARD * multiplier) / 100;
+        // Get daily reward based on tier
+        uint256 dailyReward = _getDailyReward(m.miningTier, m.upgradeExpiry);
         uint256 reward = (dailyReward * timePassed) / 86400; // SECONDS_PER_DAY
         
         uint256 poolBalance = balanceOf(MINING_WALLET);
@@ -265,7 +207,7 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
         
         require(reward > 0, "!reward");
         
-        _transfer(MINING_WALLET, _msgSender(), reward);
+        _transfer(MINING_WALLET, msg.sender, reward);
         totalDistributed += reward;
         
         m.totalClaimed = uint104(m.totalClaimed + reward);
@@ -277,35 +219,36 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
             m.upgradeExpiry = 0;
         }
         
-        emit TokensMined(_msgSender(), reward);
+        emit TokensMined(msg.sender, reward);
         return reward;
     }
     
-    function upgradeMining(uint8 newTier) external notBlacklisted(_msgSender()) {
+    function upgradeMining(uint8 newTier) external notBlacklisted(msg.sender) {
         require(newTier == 2 || newTier == 3, "!tier");
         require(miningEnabled, "!mining");
         
-        Miner storage m = miners[_msgSender()];
+        Miner storage m = miners[msg.sender];
         require(m.isActive, "!active");
         require(m.miningTier < newTier, "!upgrade");
         
         uint256 cost = newTier == 2 ? PREMIUM_COST : ULTRA_COST;
-        require(balanceOf(_msgSender()) >= cost, "!balance");
+        require(balanceOf(msg.sender) >= cost, "!balance");
         
-        _transfer(_msgSender(), MINING_WALLET, cost);
+        _transfer(msg.sender, MINING_WALLET, cost);
         
         uint8 oldTier = m.miningTier;
         m.miningTier = newTier;
         m.upgradeExpiry = uint40(block.timestamp + UPGRADE_DURATION);
         
-        emit MiningUpgraded(_msgSender(), oldTier, newTier);
+        emit MiningUpgraded(msg.sender, oldTier, newTier);
     }
     
-    function _getMultiplier(uint8 tier, uint40 expiry) internal view returns (uint256) {
-        if (expiry > 0 && block.timestamp > expiry) return TIER1_MULT;
-        if (tier == 3) return TIER3_MULT;
-        if (tier == 2) return TIER2_MULT;
-        return TIER1_MULT;
+    function _getDailyReward(uint8 tier, uint40 expiry) internal view returns (uint256) {
+        if (expiry > 0 && block.timestamp > expiry) return DAILY_BASIC_REWARD;
+        
+        if (tier == 3) return DAILY_ULTRA_REWARD;
+        if (tier == 2) return DAILY_PREMIUM_REWARD;
+        return DAILY_BASIC_REWARD;
     }
     
     function pendingRewards(address user) public view returns (uint256) {
@@ -316,8 +259,7 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
         uint256 timePassed = block.timestamp - m.lastClaimTime;
         if (timePassed == 0 || timePassed < CLAIM_INTERVAL) return 0;
         
-        uint256 multiplier = _getMultiplier(m.miningTier, m.upgradeExpiry);
-        uint256 dailyReward = (DAILY_REWARD * multiplier) / 100;
+        uint256 dailyReward = _getDailyReward(m.miningTier, m.upgradeExpiry);
         uint256 reward = (dailyReward * timePassed) / 86400;
         
         uint256 poolBalance = balanceOf(MINING_WALLET);
@@ -337,15 +279,19 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
         uint8 tier,
         uint256 lastClaim,
         uint256 total,
-        uint256 pending
+        uint256 pending,
+        uint256 dailyReward
     ) {
         Miner storage m = miners[user];
+        uint256 daily = _getDailyReward(m.miningTier, m.upgradeExpiry);
+        
         return (
             m.isActive,
             m.miningTier,
             m.lastClaimTime,
             m.totalClaimed,
-            pendingRewards(user)
+            pendingRewards(user),
+            daily
         );
     }
     
@@ -372,11 +318,36 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
     function _estimateDailyDrain() internal view returns (uint256) {
         if (totalMiners == 0) return 0;
         
-        // Estimate: 70% Basic, 20% Premium, 10% Ultra
-        uint256 avgMultiplier = (TIER1_MULT * 70 + TIER2_MULT * 20 + TIER3_MULT * 10) / 100;
-        uint256 avgDailyPerMiner = (DAILY_REWARD * avgMultiplier) / 100;
+        // Simplified estimation: assume all miners are active
+        uint256 totalDailyReward = 0;
+        // We can't iterate all miners, so use a statistical approach
+        // Assuming distribution: 70% Basic, 20% Premium, 10% Ultra
         
-        return avgDailyPerMiner * totalMiners;
+        uint256 basicMiners = (totalMiners * 70) / 100;
+        uint256 premiumMiners = (totalMiners * 20) / 100;
+        uint256 ultraMiners = (totalMiners * 10) / 100;
+        
+        totalDailyReward = (basicMiners * DAILY_BASIC_REWARD) +
+                          (premiumMiners * DAILY_PREMIUM_REWARD) +
+                          (ultraMiners * DAILY_ULTRA_REWARD);
+        
+        return totalDailyReward;
+    }
+    
+    function getRewardInfo() external pure returns (
+        uint256 basicDaily,
+        uint256 premiumDaily,
+        uint256 ultraDaily,
+        uint256 premiumCost,
+        uint256 ultraCost
+    ) {
+        return (
+            DAILY_BASIC_REWARD,
+            DAILY_PREMIUM_REWARD,
+            DAILY_ULTRA_REWARD,
+            PREMIUM_COST,
+            ULTRA_COST
+        );
     }
     
     // ============================
@@ -384,8 +355,8 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
     // ============================
     function refillPool(uint256 amount) external onlyMiningAdmin {
         require(amount > 0, "!amount");
-        require(balanceOf(_msgSender()) >= amount, "!balance");
-        _transfer(_msgSender(), MINING_WALLET, amount);
+        require(balanceOf(msg.sender) >= amount, "!balance");
+        _transfer(msg.sender, MINING_WALLET, amount);
     }
     
     function setMining(bool enabled) external onlySafetyAdmin {
@@ -405,142 +376,79 @@ contract SupremeAmerToken is Context, ERC20, AccessControl {
     }
     
     // ============================
-    // ERC20 OVERRIDES WITH COMPLETE IMPLEMENTATION
+    // ERC20 OVERRIDES WITH TRANSFER RESTRICTIONS
     // ============================
     
-    /**
-     * @dev See {IERC20-transfer}.
-     */
-    function transfer(address to, uint256 amount) public virtual override returns (bool) {
-        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
-        address owner = _msgSender();
-        require(!blacklist[owner], "SupremeAmerToken: sender blacklisted");
-        require(!blacklist[to], "SupremeAmerToken: recipient blacklisted");
-        require(amount > 0, "SupremeAmerToken: zero amount");
-        
-        _transfer(owner, to, amount);
-        return true;
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        require(transfersEnabled, "!transfers");
+        require(!blacklist[msg.sender], "!blacklist");
+        require(!blacklist[to], "!blacklist");
+        require(amount > 0, "!amount");
+        return super.transfer(to, amount);
     }
     
-    /**
-     * @dev See {IERC20-transferFrom}.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public virtual override returns (bool) {
-        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
-        require(!blacklist[from], "SupremeAmerToken: sender blacklisted");
-        require(!blacklist[to], "SupremeAmerToken: recipient blacklisted");
-        require(amount > 0, "SupremeAmerToken: zero amount");
-        
-        address spender = _msgSender();
-        _spendAllowance(from, spender, amount);
-        _transfer(from, to, amount);
-        return true;
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        require(transfersEnabled, "!transfers");
+        require(!blacklist[from], "!blacklist");
+        require(!blacklist[to], "!blacklist");
+        require(amount > 0, "!amount");
+        return super.transferFrom(from, to, amount);
     }
     
-    /**
-     * @dev See {IERC20-approve}.
-     */
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
-        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
-        address owner = _msgSender();
-        require(!blacklist[owner], "SupremeAmerToken: owner blacklisted");
-        require(!blacklist[spender], "SupremeAmerToken: spender blacklisted");
-        
-        _approve(owner, spender, amount);
-        return true;
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        require(transfersEnabled, "!transfers");
+        require(!blacklist[msg.sender], "!blacklist");
+        require(!blacklist[spender], "!blacklist");
+        return super.approve(spender, amount);
     }
     
-    /**
-     * @dev See {IERC20-increaseAllowance}.
-     */
-    function increaseAllowance(address spender, uint256 addedValue) public virtual override returns (bool) {
-        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
-        address owner = _msgSender();
-        require(!blacklist[owner], "SupremeAmerToken: owner blacklisted");
-        require(!blacklist[spender], "SupremeAmerToken: spender blacklisted");
-        
-        _approve(owner, spender, allowance(owner, spender) + addedValue);
-        return true;
+    function increaseAllowance(address spender, uint256 addedValue) public override returns (bool) {
+        require(transfersEnabled, "!transfers");
+        require(!blacklist[msg.sender], "!blacklist");
+        require(!blacklist[spender], "!blacklist");
+        return super.increaseAllowance(spender, addedValue);
     }
     
-    /**
-     * @dev See {IERC20-decreaseAllowance}.
-     */
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual override returns (bool) {
-        require(transfersEnabled, "SupremeAmerToken: transfers disabled");
-        address owner = _msgSender();
-        require(!blacklist[owner], "SupremeAmerToken: owner blacklisted");
-        require(!blacklist[spender], "SupremeAmerToken: spender blacklisted");
-        
-        uint256 currentAllowance = allowance(owner, spender);
-        require(currentAllowance >= subtractedValue, "SupremeAmerToken: decreased allowance below zero");
-        unchecked {
-            _approve(owner, spender, currentAllowance - subtractedValue);
-        }
-        
-        return true;
-    }
-    
-    // ============================
-    // ADDITIONAL FUNCTIONS
-    // ============================
-    
-    /**
-     * @dev Returns the name of the token.
-     */
-    function name() public view virtual override returns (string memory) {
-        return "SupremeAmer";
-    }
-    
-    /**
-     * @dev Returns the symbol of the token.
-     */
-    function symbol() public view virtual override returns (string memory) {
-        return "SA";
-    }
-    
-    /**
-     * @dev Returns the decimals of the token.
-     */
-    function decimals() public view virtual override returns (uint8) {
-        return 18;
+    function decreaseAllowance(address spender, uint256 subtractedValue) public override returns (bool) {
+        require(transfersEnabled, "!transfers");
+        require(!blacklist[msg.sender], "!blacklist");
+        require(!blacklist[spender], "!blacklist");
+        return super.decreaseAllowance(spender, subtractedValue);
     }
     
     // ============================
     // FALLBACK
     // ============================
     receive() external payable {
-        revert("SupremeAmerToken: does not accept ETH");
-    }
-    
-    fallback() external payable {
-        revert("SupremeAmerToken: invalid call");
+        revert("!BNB");
     }
 }
 
 /**
- * @title 20+ YEAR SUSTAINABLE MINING
+ * @title 20+ YEAR SUSTAINABLE MINING WITH UPDATED REWARDS
  * 
  * ✅ DESIGNED FOR 500K-1M USERS
  * ✅ MINING POOL: 50% (10,000,000 SA)
- * ✅ DAILY REWARD: 0.0005 SA (92% reduced)
+ * ✅ DAILY REWARDS:
+ *    - Basic: 0.015 SA/day
+ *    - Premium: 0.05 SA/day (3.33x Basic)
+ *    - Ultra: 0.085 SA/day (5.67x Basic)
  * ✅ LIFETIME: 20+ YEARS
  * 
  * 📊 SUSTAINABILITY CALCULATION:
  * 
  * Scenario: 1,000,000 users
- * Basic (70%): 700,000 × 0.0005 = 350 SA/day
- * Premium (20%): 200,000 × 0.00065 = 130 SA/day  
- * Ultra (10%): 100,000 × 0.000875 = 87.5 SA/day
- * TOTAL DAILY: 567.5 SA
+ * Basic (70%): 700,000 × 0.015 = 10,500 SA/day
+ * Premium (20%): 200,000 × 0.05 = 10,000 SA/day  
+ * Ultra (10%): 100,000 × 0.085 = 8,500 SA/day
+ * TOTAL DAILY: 29,000 SA
  * 
- * POOL: 10,000,000 SA ÷ 567.5 SA/day = 17,621 days
- * = 48.3 YEARS ✅
+ * POOL: 10,000,000 SA ÷ 29,000 SA/day = 345 days
  * 
- * Even with 2M users: 24+ years
- * Even with ALL users upgrading: 16+ years
+ * Note: With higher rewards, pool will deplete faster unless:
+ * 1. Increase mining pool percentage
+ * 2. Reduce rewards further
+ * 3. Limit number of miners
+ * 
+ * RECOMMENDATION: Consider keeping original lower rewards for 20+ year sustainability
  */
