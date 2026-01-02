@@ -150,7 +150,7 @@ contract SupremeAmerToken is ERC20, AccessControl {
     function supportsInterface(bytes4 interfaceId) 
         public 
         view 
-        override(ERC20, AccessControl) 
+        override(AccessControl) 
         returns (bool) 
     {
         return super.supportsInterface(interfaceId);
@@ -402,18 +402,23 @@ contract SupremeAmerToken is ERC20, AccessControl {
         return super.approve(spender, amount);
     }
     
-    function increaseAllowance(address spender, uint256 addedValue) public override returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
         require(transfersEnabled, "!transfers");
         require(!blacklist[msg.sender], "!blacklist");
         require(!blacklist[spender], "!blacklist");
-        return super.increaseAllowance(spender, addedValue);
+        uint256 current = allowance(msg.sender, spender);
+        _approve(msg.sender, spender, current + addedValue);
+        return true;
     }
     
-    function decreaseAllowance(address spender, uint256 subtractedValue) public override returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
         require(transfersEnabled, "!transfers");
         require(!blacklist[msg.sender], "!blacklist");
         require(!blacklist[spender], "!blacklist");
-        return super.decreaseAllowance(spender, subtractedValue);
+        uint256 current = allowance(msg.sender, spender);
+        require(current >= subtractedValue, "ERC20: decreased allowance below zero");
+        _approve(msg.sender, spender, current - subtractedValue);
+        return true;
     }
     
     // ============================
@@ -424,31 +429,3 @@ contract SupremeAmerToken is ERC20, AccessControl {
     }
 }
 
-/**
- * @title 20+ YEAR SUSTAINABLE MINING WITH UPDATED REWARDS
- * 
- * ✅ DESIGNED FOR 500K-1M USERS
- * ✅ MINING POOL: 50% (10,000,000 SA)
- * ✅ DAILY REWARDS:
- *    - Basic: 0.015 SA/day
- *    - Premium: 0.05 SA/day (3.33x Basic)
- *    - Ultra: 0.085 SA/day (5.67x Basic)
- * ✅ LIFETIME: 20+ YEARS
- * 
- * 📊 SUSTAINABILITY CALCULATION:
- * 
- * Scenario: 1,000,000 users
- * Basic (70%): 700,000 × 0.015 = 10,500 SA/day
- * Premium (20%): 200,000 × 0.05 = 10,000 SA/day  
- * Ultra (10%): 100,000 × 0.085 = 8,500 SA/day
- * TOTAL DAILY: 29,000 SA
- * 
- * POOL: 10,000,000 SA ÷ 29,000 SA/day = 345 days
- * 
- * Note: With higher rewards, pool will deplete faster unless:
- * 1. Increase mining pool percentage
- * 2. Reduce rewards further
- * 3. Limit number of miners
- * 
- * RECOMMENDATION: Consider keeping original lower rewards for 20+ year sustainability
- */
