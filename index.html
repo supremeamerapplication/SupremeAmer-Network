@@ -3,35 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SupremeAmer Mining Platform</title>
+    <title>SupremeAmer Token Mining Platform</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary: #2a2d7a;
-            --secondary: #4a4fde;
-            --accent: #ff6b35;
-            --success: #2ecc71;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --dark: #1a1c2e;
-            --light: #f8f9fa;
-            --gray: #6c757d;
+            --primary-blue: #00f3ff;
+            --primary-purple: #9d00ff;
+            --primary-gold: #ffd700;
+            --dark-bg: #0a0a0f;
+            --darker-bg: #050508;
+            --card-bg: #121218;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0c0;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --error: #ff4757;
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--dark) 0%, #0d0f1e 100%);
-            color: var(--light);
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(157, 0, 255, 0.15) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(0, 243, 255, 0.1) 0%, transparent 20%);
             min-height: 100vh;
-            line-height: 1.6;
+            overflow-x: hidden;
         }
 
         .container {
@@ -40,12 +47,13 @@
             padding: 20px;
         }
 
+        /* Header Styles */
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 20px 0;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(0, 243, 255, 0.2);
             margin-bottom: 30px;
         }
 
@@ -55,428 +63,422 @@
             gap: 15px;
         }
 
-        .logo h1 {
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary-gold);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+
+        .logo-text h1 {
             font-size: 28px;
-            background: linear-gradient(45deg, var(--secondary), var(--accent));
+            background: linear-gradient(to right, var(--primary-blue), var(--primary-purple), var(--primary-gold));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
             font-weight: 800;
         }
 
-        .logo-icon {
-            font-size: 36px;
-            color: var(--accent);
+        .logo-text p {
+            color: var(--text-secondary);
+            font-size: 14px;
         }
 
         .wallet-section {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
         }
 
-        .wallet-info {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 10px 20px;
-            border-radius: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .network-status {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            background-color: rgba(0, 255, 136, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(0, 255, 136, 0.3);
         }
 
-        .connect-btn {
-            background: linear-gradient(45deg, var(--secondary), var(--primary));
+        .network-status.warning {
+            background-color: rgba(255, 170, 0, 0.1);
+            color: var(--warning);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+        }
+
+        .connect-wallet-btn {
+            padding: 12px 25px;
+            border-radius: var(--border-radius);
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
             color: white;
             border: none;
-            padding: 12px 30px;
-            border-radius: 50px;
             font-weight: 600;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: var(--transition);
+            box-shadow: 0 5px 15px rgba(0, 243, 255, 0.3);
         }
 
-        .connect-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(74, 79, 222, 0.3);
+        .connect-wallet-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 243, 255, 0.4);
         }
 
-        .connect-btn.connected {
-            background: linear-gradient(45deg, var(--success), #27ae60);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--secondary);
-        }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .stat-icon {
-            font-size: 24px;
-            color: var(--accent);
-        }
-
-        .stat-title {
-            color: var(--gray);
+        .connected-wallet {
+            padding: 12px 20px;
+            border-radius: var(--border-radius);
+            background-color: var(--card-bg);
+            border: 1px solid rgba(0, 243, 255, 0.3);
             font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card Styles */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            border-color: rgba(0, 243, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 243, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: var(--primary-purple);
+        }
+
+        /* Mining Section */
+        .mining-section {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mining-coin-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
+        .coin {
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle at 30% 30%, var(--primary-gold), #b8860b);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 
+                0 0 30px rgba(255, 215, 0, 0.7),
+                inset 0 -10px 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            transition: transform 0.5s ease;
+        }
+
+        .coin.rotating {
+            animation: rotateCoin 2s infinite linear;
+        }
+
+        @keyframes rotateCoin {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
+        }
+
+        .coin-inner {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: 800;
+            color: white;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .mining-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
         }
 
         .stat-value {
-            font-size: 28px;
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .stat-change {
-            font-size: 14px;
-            color: var(--success);
-        }
-
-        .stat-change.negative {
-            color: var(--danger);
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .mining-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .panel-title {
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .status-badge {
-            background: var(--success);
-            padding: 5px 15px;
-            border-radius: 50px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status-badge.paused {
-            background: var(--danger);
+            color: var(--primary-gold);
         }
 
         .multiplier-display {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .multiplier-item {
-            text-align: center;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.1), rgba(157, 0, 255, 0.1));
             border-radius: 10px;
-        }
-
-        .multiplier-label {
-            color: var(--gray);
-            font-size: 14px;
-            margin-bottom: 5px;
         }
 
         .multiplier-value {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 800;
-            color: var(--accent);
+            background: linear-gradient(to right, var(--primary-blue), var(--primary-gold));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
 
-        .action-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .btn {
-            padding: 15px 25px;
+        /* Button Styles */
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: var(--border-radius);
             border: none;
-            border-radius: 10px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: var(--transition);
+            margin-top: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
         }
 
-        .btn-primary {
-            background: linear-gradient(45deg, var(--secondary), var(--primary));
+        .mine-btn {
+            background: linear-gradient(135deg, var(--primary-gold), #ffaa00);
+            color: #000;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .mine-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .stake-btn {
+            background: linear-gradient(135deg, var(--primary-blue), #0099cc);
             color: white;
+            box-shadow: 0 5px 15px rgba(0, 243, 255, 0.4);
         }
 
-        .btn-success {
-            background: linear-gradient(45deg, var(--success), #27ae60);
+        .stake-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 243, 255, 0.5);
+        }
+
+        .withdraw-btn {
+            background: linear-gradient(135deg, var(--primary-purple), #7b00cc);
             color: white;
+            box-shadow: 0 5px 15px rgba(157, 0, 255, 0.4);
         }
 
-        .btn-warning {
-            background: linear-gradient(45deg, var(--warning), #d68910);
-            color: white;
+        .withdraw-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(157, 0, 255, 0.5);
         }
 
-        .btn-danger {
-            background: linear-gradient(45deg, var(--danger), #c0392b);
-            color: white;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn:disabled {
+        .action-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            transform: none;
         }
 
-        .stake-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .input-group {
+        /* Form Styles */
+        .form-group {
             margin-bottom: 20px;
         }
 
-        .input-label {
+        .form-label {
             display: block;
             margin-bottom: 8px;
-            color: var(--gray);
+            color: var(--text-secondary);
+            font-size: 14px;
         }
 
-        .input-field {
+        .form-input {
             width: 100%;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px;
             border-radius: 10px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
             font-size: 16px;
+            transition: var(--transition);
         }
 
-        .input-field:focus {
+        .form-input:focus {
             outline: none;
-            border-color: var(--secondary);
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
         }
 
-        .range-input {
-            width: 100%;
+        /* Progress Bars */
+        .progress-container {
             margin: 15px 0;
         }
 
-        .range-labels {
+        .progress-label {
             display: flex;
             justify-content: space-between;
-            color: var(--gray);
+            margin-bottom: 5px;
             font-size: 14px;
         }
 
-        .tiers-grid {
+        .progress-bar {
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-blue), var(--primary-purple));
+            border-radius: 5px;
+            transition: width 1s ease;
+        }
+
+        /* Dashboard */
+        .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
             margin-top: 20px;
         }
 
-        .tier-card {
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 10px;
+        .dashboard-card {
             padding: 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            border-top: 4px solid var(--primary-blue);
+        }
+
+        /* Supply Info */
+        .supply-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .supply-item {
             text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
         }
 
-        .tier-card.active {
-            border-color: var(--accent);
-            background: rgba(255, 107, 53, 0.1);
-        }
-
-        .tier-card:hover {
-            transform: translateY(-3px);
-        }
-
-        .tier-name {
-            font-size: 14px;
-            color: var(--gray);
-            margin-bottom: 5px;
-        }
-
-        .tier-multiplier {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--accent);
-        }
-
-        .tier-stake {
-            font-size: 12px;
-            color: var(--gray);
-            margin-top: 5px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--dark);
-            border-radius: 15px;
-            padding: 40px;
-            max-width: 500px;
-            width: 90%;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .modal-title {
+        .supply-value {
             font-size: 24px;
             font-weight: 700;
+            color: var(--primary-gold);
+            margin: 10px 0;
         }
 
-        .close-modal {
-            background: none;
-            border: none;
-            color: var(--gray);
-            font-size: 24px;
-            cursor: pointer;
-        }
-
+        /* Notifications */
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
             padding: 15px 25px;
-            border-radius: 10px;
-            background: var(--success);
-            color: white;
-            display: none;
+            border-radius: var(--border-radius);
+            background-color: var(--card-bg);
+            border-left: 5px solid var(--success);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: flex;
             align-items: center;
-            gap: 10px;
-            z-index: 1001;
+            gap: 15px;
+            transform: translateX(150%);
+            transition: transform 0.5s ease;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
         }
 
         .notification.error {
-            background: var(--danger);
+            border-left-color: var(--error);
         }
 
         .notification.warning {
-            background: var(--warning);
+            border-left-color: var(--warning);
         }
 
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+        .notification.info {
+            border-left-color: var(--primary-blue);
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .responsive-table {
-            overflow-x: auto;
-            margin-top: 30px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        th {
-            color: var(--gray);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 1px;
-        }
-
-        @media (max-width: 1024px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .stats-grid {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .mining-stats {
                 grid-template-columns: 1fr;
             }
             
-            .action-buttons {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .supply-container {
                 grid-template-columns: 1fr;
             }
             
@@ -484,1007 +486,1508 @@
                 flex-direction: column;
                 gap: 20px;
             }
+            
+            .wallet-section {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .tab:hover {
+            color: var(--primary-blue);
+        }
+
+        .tab.active {
+            color: var(--primary-blue);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--primary-purple));
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <header>
             <div class="logo">
-                <div class="logo-icon">⛏️</div>
-                <h1>SupremeAmer Mining Platform</h1>
+                <div class="logo-icon">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>SupremeAmer Mining</h1>
+                    <p>Mine, Stake, and Earn SA Tokens</p>
+                </div>
             </div>
             <div class="wallet-section">
-                <div class="wallet-info" id="walletInfo">
-                    Not Connected
+                <div class="network-status" id="networkStatus">
+                    <i class="fas fa-circle"></i> Network: Unknown
                 </div>
-                <button class="connect-btn" id="connectBtn">
-                    <i class="fas fa-plug"></i> Connect Wallet
+                <button class="connect-wallet-btn" id="connectWalletBtn">
+                    <i class="fas fa-wallet"></i> Connect Wallet
                 </button>
+                <div class="connected-wallet" id="connectedWallet" style="display: none;">
+                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                    <span id="walletAddress">0x0000...0000</span>
+                </div>
             </div>
         </header>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-title">Total Mined</div>
-                    <div class="stat-icon">⛏️</div>
-                </div>
-                <div class="stat-value" id="totalMined">0 SA</div>
-                <div class="stat-change" id="dailyMined">0 today</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-title">Your Balance</div>
-                    <div class="stat-icon"><i class="fas fa-wallet"></i></div>
-                </div>
-                <div class="stat-value" id="userBalance">0 SA</div>
-                <div class="stat-change" id="userStaked">0 staked</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-title">Active Miners</div>
-                    <div class="stat-icon"><i class="fas fa-users"></i></div>
-                </div>
-                <div class="stat-value" id="activeMiners">0</div>
-                <div class="stat-change" id="miningStatus">Active</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-title">Next Halving</div>
-                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                </div>
-                <div class="stat-value" id="nextHalving">0 days</div>
-                <div class="stat-change" id="currentHalving">Halving #0</div>
-            </div>
-        </div>
+        <!-- Notification Area -->
+        <div id="notificationArea"></div>
 
-        <div class="main-content">
-            <div class="mining-panel">
-                <div class="panel-header">
-                    <div class="panel-title">Mining Dashboard</div>
-                    <div class="status-badge" id="miningStatusBadge">Active</div>
-                </div>
-                
-                <div class="multiplier-display">
-                    <div class="multiplier-item">
-                        <div class="multiplier-label">Tier Multiplier</div>
-                        <div class="multiplier-value" id="tierMultiplier">1.0x</div>
+        <!-- Main Content -->
+        <div class="main-layout">
+            <!-- Left Column: Registration & Staking -->
+            <div class="left-column">
+                <!-- Registration Card -->
+                <div class="card" id="registrationCard">
+                    <h2 class="card-title"><i class="fas fa-user-plus"></i> Miner Registration</h2>
+                    <div class="form-group">
+                        <label class="form-label">Referral Address (Optional)</label>
+                        <input type="text" class="form-input" id="referralAddress" placeholder="0x...">
                     </div>
-                    <div class="multiplier-item">
-                        <div class="multiplier-label">Staking Boost</div>
-                        <div class="multiplier-value" id="stakingBoost">1.0x</div>
-                    </div>
-                    <div class="multiplier-item">
-                        <div class="multiplier-label">Streak Bonus</div>
-                        <div class="multiplier-value" id="streakBonus">1.0x</div>
-                    </div>
-                    <div class="multiplier-item">
-                        <div class="multiplier-label">Total Multiplier</div>
-                        <div class="multiplier-value" id="totalMultiplier">1.0x</div>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label class="input-label">Referral Address (Optional)</label>
-                    <input type="text" class="input-field" id="referralAddress" placeholder="0x...">
-                </div>
-
-                <div class="action-buttons">
-                    <button class="btn btn-primary" id="registerBtn">
-                        <i class="fas fa-user-plus"></i> Register Miner
-                    </button>
-                    <button class="btn btn-success" id="mineBtn">
-                        <i class="fas fa-hammer"></i> Mine Tokens
-                    </button>
-                    <button class="btn btn-warning" id="claimReferralBtn">
-                        <i class="fas fa-hand-holding-usd"></i> Claim Referrals
-                    </button>
-                    <button class="btn btn-warning" id="withdrawBtn">
-                        <i class="fas fa-coins"></i> Withdraw Tokens
+                    <button class="action-btn stake-btn" id="registerBtn">
+                        <i class="fas fa-user-check"></i> Register Miner
                     </button>
                 </div>
 
-                <div class="responsive-table">
-                    <h3>Your Active Stakes</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Amount</th>
-                                <th>Lock Period</th>
-                                <th>Start Date</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stakesTable">
-                            <tr>
-                                <td colspan="5" style="text-align: center;">No active stakes</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="stake-panel">
-                <div class="panel-header">
-                    <div class="panel-title">Staking Panel</div>
-                </div>
-
-                <div class="input-group">
-                    <label class="input-label">Amount to Stake (SA)</label>
-                    <input type="number" class="input-field" id="stakeAmount" min="0" step="1" placeholder="Enter amount">
-                </div>
-
-                <div class="input-group">
-                    <label class="input-label">Lock Period: <span id="lockDaysValue">90</span> days</label>
-                    <input type="range" class="range-input" id="lockDays" min="30" max="365" value="90">
-                    <div class="range-labels">
-                        <span>30 days</span>
-                        <span>365 days</span>
+                <!-- Staking Card -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fas fa-lock"></i> Stake SA Tokens</h2>
+                    <div class="form-group">
+                        <label class="form-label">Amount to Stake</label>
+                        <input type="number" class="form-input" id="stakeAmount" placeholder="0.0" min="0" step="0.1">
                     </div>
-                </div>
-
-                <div class="input-group">
-                    <div class="stat-value" id="apyDisplay">APY: 15%</div>
-                    <div class="stat-change" id="estimatedReward">Estimated Reward: 0 SA</div>
-                </div>
-
-                <div class="action-buttons">
-                    <button class="btn btn-success" id="stakeBtn">
+                    <div class="form-group">
+                        <label class="form-label">Lock Period (Days: 30-365)</label>
+                        <input type="range" class="form-input" id="lockDays" min="30" max="365" value="90">
+                        <div class="progress-label">
+                            <span>Days:</span>
+                            <span id="lockDaysValue">90</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Estimated APY: <span id="estimatedAPY">0%</span></label>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="apyBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <button class="action-btn stake-btn" id="stakeBtn">
                         <i class="fas fa-lock"></i> Stake Tokens
                     </button>
-                    <button class="btn btn-primary" id="unstakeBtn" style="display: none;">
-                        <i class="fas fa-unlock"></i> Unstake Selected
+                    
+                    <!-- Active Stakes -->
+                    <div id="activeStakesContainer" style="margin-top: 25px; display: none;">
+                        <h3 class="card-title" style="font-size: 18px;"><i class="fas fa-list"></i> Active Stakes</h3>
+                        <div id="activeStakesList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Column: Mining & Dashboard -->
+            <div class="middle-column">
+                <!-- Mining Card -->
+                <div class="card mining-section">
+                    <h2 class="card-title"><i class="fas fa-hard-hat"></i> Mine SA Tokens</h2>
+                    
+                    <div class="mining-coin-container">
+                        <div class="coin" id="miningCoin">
+                            <div class="coin-inner">SA</div>
+                        </div>
+                        <div class="multiplier-display">
+                            <div>
+                                <div class="stat-label">Total Multiplier</div>
+                                <div class="multiplier-value" id="totalMultiplier">100%</div>
+                            </div>
+                            <div>
+                                <div class="stat-label">Max: 300%</div>
+                                <div class="progress-bar" style="width: 100px;">
+                                    <div class="progress-fill" id="multiplierBar" style="width: 33%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mining-stats">
+                        <div class="stat-item">
+                            <div class="stat-label">Mined Tokens</div>
+                            <div class="stat-value" id="minedTokens">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Current Streak</div>
+                            <div class="stat-value" id="miningStreak">0 days</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Miner Tier</div>
+                            <div class="stat-value" id="minerTier">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Next Mining In</div>
+                            <div class="stat-value" id="nextMiningTime">Ready</div>
+                        </div>
+                    </div>
+                    
+                    <button class="action-btn mine-btn" id="mineBtn">
+                        <i class="fas fa-digging"></i> Mine Tokens
                     </button>
                 </div>
 
-                <div style="margin-top: 30px;">
-                    <h3>Tier Benefits</h3>
-                    <div class="tiers-grid" id="tiersContainer">
-                        <!-- Tiers will be populated by JavaScript -->
+                <!-- Dashboard Tabs -->
+                <div class="card">
+                    <div class="tabs">
+                        <button class="tab active" data-tab="dashboard">Dashboard</button>
+                        <button class="tab" data-tab="referrals">Referrals</button>
+                        <button class="tab" data-tab="withdraw">Withdraw</button>
+                    </div>
+                    
+                    <!-- Dashboard Tab -->
+                    <div class="tab-content active" id="dashboardTab">
+                        <div class="dashboard-grid">
+                            <div class="dashboard-card">
+                                <div class="stat-label">SA Balance</div>
+                                <div class="stat-value" id="saBalance">0</div>
+                            </div>
+                            <div class="dashboard-card">
+                                <div class="stat-label">Total Mined</div>
+                                <div class="stat-value" id="totalMined">0</div>
+                            </div>
+                            <div class="dashboard-card">
+                                <div class="stat-label">Staked Amount</div>
+                                <div class="stat-value" id="stakedAmount">0</div>
+                            </div>
+                            <div class="dashboard-card">
+                                <div class="stat-label">Referral Rewards</div>
+                                <div class="stat-value" id="referralRewards">0</div>
+                            </div>
+                            <div class="dashboard-card">
+                                <div class="stat-label">Active Status</div>
+                                <div class="stat-value" id="activeStatus">Active</div>
+                            </div>
+                            <div class="dashboard-card">
+                                <div class="stat-label">Liquidity Boost</div>
+                                <div class="stat-value" id="liquidityBoost">0%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Charts -->
+                        <div style="margin-top: 30px;">
+                            <canvas id="miningChart" height="100"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Referrals Tab -->
+                    <div class="tab-content" id="referralsTab">
+                        <div class="form-group">
+                            <label class="form-label">Your Referral Link</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" class="form-input" id="referralLink" readonly value="Not available">
+                                <button class="action-btn stake-btn" style="width: auto; padding: 10px 15px;" id="copyReferralBtn">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item" style="margin-top: 20px;">
+                            <div class="stat-label">Total Referrals</div>
+                            <div class="stat-value" id="totalReferrals">0</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-label">Referral Rewards Available</div>
+                            <div class="stat-value" id="referralRewardsAvailable">0 SA</div>
+                        </div>
+                        
+                        <button class="action-btn withdraw-btn" id="claimReferralBtn">
+                            <i class="fas fa-gift"></i> Claim Referral Rewards
+                        </button>
+                        
+                        <div style="margin-top: 25px;">
+                            <h3 class="card-title" style="font-size: 18px;"><i class="fas fa-users"></i> Recent Referrals</h3>
+                            <div id="referralsList" style="margin-top: 15px; color: var(--text-secondary); font-size: 14px;">
+                                No referrals yet
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Withdraw Tab -->
+                    <div class="tab-content" id="withdrawTab">
+                        <div class="form-group">
+                            <label class="form-label">Amount to Withdraw</label>
+                            <input type="number" class="form-input" id="withdrawAmount" placeholder="0.0" min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Available Balance: <span id="availableBalance">0</span> SA</label>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="withdrawBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <button class="action-btn withdraw-btn" id="withdrawBtn">
+                            <i class="fas fa-wallet"></i> Withdraw SA Tokens
+                        </button>
+                        
+                        <div class="stat-item" style="margin-top: 25px;">
+                            <div class="stat-label">Last Withdrawal</div>
+                            <div class="stat-value" id="lastWithdrawal">Never</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Supply & Info -->
+            <div class="right-column">
+                <!-- Supply Info Card -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fas fa-chart-pie"></i> Supply & Ecosystem</h2>
+                    <div class="supply-container">
+                        <div class="supply-item">
+                            <div class="stat-label">Total Supply</div>
+                            <div class="supply-value" id="totalSupply">10,000,000</div>
+                        </div>
+                        <div class="supply-item">
+                            <div class="stat-label">Burned Tokens</div>
+                            <div class="supply-value" id="burnedTokens">1,250,000</div>
+                        </div>
+                        <div class="supply-item">
+                            <div class="stat-label">Mining Supply Left</div>
+                            <div class="supply-value" id="miningSupplyLeft">5,000,000</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 50%"></div>
+                            </div>
+                        </div>
+                        <div class="supply-item">
+                            <div class="stat-label">Active Miners</div>
+                            <div class="supply-value" id="activeMiners">1,247</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 25px;">
+                        <div class="stat-item">
+                            <div class="stat-label">Next Halving</div>
+                            <div class="stat-value" id="nextHalving">365 days</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 30%"></div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Current Halving Stage</div>
+                            <div class="stat-value" id="halvingStage">1/4</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multiplier Info Card -->
+                <div class="card">
+                    <h2 class="card-title"><i class="fas fa-rocket"></i> Multiplier Breakdown</h2>
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>Base Multiplier</span>
+                            <span>100%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>Tier Bonus</span>
+                            <span id="tierBonus">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="tierBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>Staking Boost</span>
+                            <span id="stakingBoost">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="stakingBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>Streak Bonus</span>
+                            <span id="streakBonus">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="streakBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>Liquidity Boost</span>
+                            <span id="liquidityBonus">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="liquidityBar" style="width: 0%"></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="mining-panel">
-            <div class="panel-header">
-                <div class="panel-title">Token Management</div>
-            </div>
-            
-            <div class="action-buttons">
-                <button class="btn btn-warning" id="burnBtn">
-                    <i class="fas fa-fire"></i> Burn Tokens
-                </button>
-                <button class="btn btn-primary" id="vestingBtn">
-                    <i class="fas fa-calendar-alt"></i> View Vesting
-                </button>
-                <button class="btn btn-danger" id="emergencyBtn">
-                    <i class="fas fa-exclamation-triangle"></i> Emergency Withdraw
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modals -->
-    <div class="modal" id="referralModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">Referral Rewards</div>
-                <button class="close-modal" onclick="closeModal('referralModal')">&times;</button>
-            </div>
-            <div class="input-group">
-                <label class="input-label">Your Referral Link</label>
-                <input type="text" class="input-field" id="referralLink" readonly>
-            </div>
-            <div class="input-group">
-                <label class="input-label">Total Referral Rewards</label>
-                <div class="stat-value" id="referralRewards">0 SA</div>
-            </div>
-            <div class="action-buttons" style="margin-top: 20px;">
-                <button class="btn btn-success" onclick="copyReferralLink()">
-                    <i class="fas fa-copy"></i> Copy Link
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="burnModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">Burn Tokens</div>
-                <button class="close-modal" onclick="closeModal('burnModal')">&times;</button>
-            </div>
-            <div class="input-group">
-                <label class="input-label">Amount to Burn</label>
-                <input type="number" class="input-field" id="burnAmount" min="0" step="1" placeholder="Enter amount">
-            </div>
-            <div class="input-group">
-                <div class="stat-value" id="burnInfo">Burning removes tokens permanently</div>
-            </div>
-            <div class="action-buttons" style="margin-top: 20px;">
-                <button class="btn btn-danger" id="confirmBurnBtn">
-                    <i class="fas fa-fire"></i> Confirm Burn
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="withdrawModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">Withdraw Tokens</div>
-                <button class="close-modal" onclick="closeModal('withdrawModal')">&times;</button>
-            </div>
-            <div class="input-group">
-                <label class="input-label">Amount to Withdraw</label>
-                <input type="number" class="input-field" id="withdrawAmount" min="0" step="1" placeholder="Enter amount">
-            </div>
-            <div class="action-buttons" style="margin-top: 20px;">
-                <button class="btn btn-warning" id="confirmWithdrawBtn">
-                    <i class="fas fa-coins"></i> Confirm Withdraw
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div class="notification" id="notification">
-        <i class="fas fa-check-circle"></i>
-        <span id="notificationText">Operation completed successfully!</span>
+        
+        <footer style="text-align: center; padding: 30px 0; color: var(--text-secondary); font-size: 14px; border-top: 1px solid rgba(255, 255, 255, 0.1); margin-top: 20px;">
+            <p>SupremeAmer Token Mining Platform v1.0 | This is a frontend simulation. For production use, connect to actual blockchain contract.</p>
+            <p style="margin-top: 10px;">Remember: Always verify contract addresses and use at your own risk.</p>
+        </footer>
     </div>
 
     <script>
-        // Contract ABI - Partial for demonstration
-        const contractABI = [
-            // ERC20 functions
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "name",
-                "outputs": [{"name": "", "type": "string"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [{"name": "account", "type": "address"}],
-                "name": "balanceOf",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": false,
-                "inputs": [{"name": "amount", "type": "uint256"}],
-                "name": "burn",
-                "outputs": [],
-                "type": "function"
-            },
-            
-            // Mining functions
-            {
-                "constant": false,
-                "inputs": [{"name": "referrer", "type": "address"}],
-                "name": "registerMiner",
-                "outputs": [],
-                "type": "function"
-            },
-            {
-                "constant": false,
-                "inputs": [],
-                "name": "mine",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": false,
-                "inputs": [],
-                "name": "claimReferralRewards",
-                "outputs": [],
-                "type": "function"
-            },
-            
-            // Staking functions
-            {
-                "constant": false,
-                "inputs": [
-                    {"name": "amount", "type": "uint256"},
-                    {"name": "lockDays", "type": "uint256"}
-                ],
-                "name": "stakeTokens",
-                "outputs": [],
-                "type": "function"
-            },
-            {
-                "constant": false,
-                "inputs": [{"name": "stakeIndex", "type": "uint256"}],
-                "name": "unstakeTokens",
-                "outputs": [],
-                "type": "function"
-            },
-            
-            // View functions
-            {
-                "constant": true,
-                "inputs": [{"name": "user", "type": "address"}],
-                "name": "getUserStats",
-                "outputs": [
-                    {"name": "balance", "type": "uint256"},
-                    {"name": "staked", "type": "uint256"},
-                    {"name": "mined", "type": "uint256"},
-                    {"name": "tier", "type": "uint256"},
-                    {"name": "streak", "type": "uint256"},
-                    {"name": "liquidityBoost", "type": "uint256"},
-                    {"name": "referralRewards", "type": "uint256"},
-                    {"name": "active", "type": "bool"}
-                ],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "getSupplyInfo",
-                "outputs": [
-                    {"name": "maxSupply", "type": "uint256"},
-                    {"name": "currentSupply", "type": "uint256"},
-                    {"name": "burned", "type": "uint256"},
-                    {"name": "availableToMine", "type": "uint256"},
-                    {"name": "availableTeam", "type": "uint256"},
-                    {"name": "availableLiquidity", "type": "uint256"},
-                    {"name": "availableEcosystem", "type": "uint256"}
-                ],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "totalMined",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "minedToday",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "activeMinersCount",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "getNextHalvingTime",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "currentHalving",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "type": "function"
-            },
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "miningPaused",
-                "outputs": [{"name": "", "type": "bool"}],
-                "type": "function"
-            },
-            
-            // Withdrawal function
-            {
-                "constant": false,
-                "inputs": [{"name": "amount", "type": "uint256"}],
-                "name": "withdrawTokens",
-                "outputs": [],
-                "type": "function"
-            },
-            
-            // Emergency functions
-            {
-                "constant": false,
-                "inputs": [],
-                "name": "emergencyWithdraw",
-                "outputs": [],
-                "type": "function"
+        // Environment Variables Simulation (In production, these would come from .env)
+        const ENV = {
+            REACT_APP_SUPREMEAMER_CONTRACT_ADDRESS: "0x742d35Cc6634C0532925a3b844Bc9e99F8AF2e4D",
+            REACT_APP_SUPABASE_URL: "https://your-project.supabase.co",
+            REACT_APP_SUPABASE_KEY: "your-anon-or-service-key"
+        };
+
+        // State Management
+        let state = {
+            walletConnected: false,
+            walletAddress: null,
+            isRegistered: false,
+            minerData: null,
+            network: null,
+            activeTab: 'dashboard',
+            miningInProgress: false,
+            notificationId: 0
+        };
+
+        // Mock contract data (in production, this would come from actual contract calls)
+        const contractData = {
+            totalSupply: 10000000,
+            burnedTokens: 1250000,
+            miningSupply: 5000000,
+            activeMiners: 1247,
+            halvingDaysLeft: 365,
+            halvingStage: "1/4"
+        };
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+            loadFromLocalStorage();
+            simulateRealTimeUpdates();
+        });
+
+        // Initialize the application
+        function initializeApp() {
+            // Check if wallet was previously connected
+            const lastWallet = localStorage.getItem('lastConnectedWallet');
+            if (lastWallet) {
+                // In a real app, we would attempt to reconnect here
+                // For simulation, we'll just show the wallet as connected
+                console.log('Previous wallet found:', lastWallet);
             }
-        ];
+            
+            // Check device accounts limit
+            checkDeviceAccountsLimit();
+            
+            // Initialize charts
+            initializeCharts();
+            
+            // Update UI based on initial state
+            updateUI();
+        }
 
-        // Contract address - You need to update this with your deployed contract address
-        const contractAddress = 'YOUR_CONTRACT_ADDRESS_HERE';
-        
-        let web3;
-        let contract;
-        let userAddress;
-        let isConnected = false;
-        let userStats = {};
-        let supplyInfo = {};
+        // Set up event listeners
+        function setupEventListeners() {
+            // Wallet connection
+            document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
+            
+            // Registration
+            document.getElementById('registerBtn').addEventListener('click', registerMiner);
+            
+            // Mining
+            document.getElementById('mineBtn').addEventListener('click', mineTokens);
+            
+            // Staking
+            document.getElementById('stakeBtn').addEventListener('click', stakeTokens);
+            document.getElementById('lockDays').addEventListener('input', updateLockDaysDisplay);
+            
+            // Withdrawal
+            document.getElementById('withdrawBtn').addEventListener('click', withdrawTokens);
+            document.getElementById('withdrawAmount').addEventListener('input', updateWithdrawBar);
+            
+            // Referrals
+            document.getElementById('claimReferralBtn').addEventListener('click', claimReferralRewards);
+            document.getElementById('copyReferralBtn').addEventListener('click', copyReferralLink);
+            
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
+            
+            // Coin animation control
+            const coin = document.getElementById('miningCoin');
+            coin.addEventListener('mouseenter', () => {
+                if (!coin.classList.contains('rotating')) {
+                    coin.classList.add('rotating');
+                    setTimeout(() => coin.classList.remove('rotating'), 2000);
+                }
+            });
+        }
 
-        // Initialize Web3
-        async function initWeb3() {
-            if (window.ethereum) {
-                web3 = new Web3(window.ethereum);
+        // Load data from localStorage
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('supremeAmerMinerData');
+            if (savedData) {
                 try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    contract = new web3.eth.Contract(contractABI, contractAddress);
-                    return true;
-                } catch (error) {
-                    console.error("User denied account access");
-                    return false;
+                    state.minerData = JSON.parse(savedData);
+                    state.isRegistered = true;
+                    updateUI();
+                } catch (e) {
+                    console.error('Failed to parse saved miner data:', e);
                 }
-            } else if (window.web3) {
-                web3 = new Web3(window.web3.currentProvider);
-                contract = new web3.eth.Contract(contractABI, contractAddress);
-                return true;
-            } else {
-                showNotification('Please install MetaMask!', 'error');
-                return false;
+            }
+            
+            // Initialize with mock data if no saved data
+            if (!state.minerData) {
+                state.minerData = getDefaultMinerData();
             }
         }
 
-        // Connect wallet
+        // Get default miner data
+        function getDefaultMinerData() {
+            return {
+                wallet: null,
+                registeredAt: null,
+                referral: null,
+                streak: 0,
+                mined: 0,
+                staked: 0,
+                tier: 0,
+                referralRewards: 0,
+                lastMine: null,
+                lastWithdrawal: null,
+                stakes: [],
+                referrals: [],
+                balance: 0,
+                liquidityBoost: 0,
+                active: true
+            };
+        }
+
+        // Check device accounts limit (2 accounts per device)
+        function checkDeviceAccountsLimit() {
+            // Generate a simple device fingerprint (in production, use a more robust method)
+            const deviceId = generateDeviceId();
+            const accounts = JSON.parse(localStorage.getItem('deviceAccounts') || '[]');
+            
+            // Check if device already has 2 accounts
+            if (accounts.length >= 2) {
+                showNotification('Maximum of 2 accounts per device allowed', 'warning');
+            }
+            
+            // Store device ID for future checks
+            localStorage.setItem('deviceId', deviceId);
+        }
+
+        // Generate a simple device ID (for simulation only)
+        function generateDeviceId() {
+            let deviceId = localStorage.getItem('deviceId');
+            if (!deviceId) {
+                deviceId = 'device_' + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('deviceId', deviceId);
+            }
+            return deviceId;
+        }
+
+        // Connect wallet (MetaMask simulation)
         async function connectWallet() {
-            const success = await initWeb3();
-            if (success) {
-                const accounts = await web3.eth.getAccounts();
-                userAddress = accounts[0];
-                isConnected = true;
-                
-                updateUI();
-                updateStats();
-                startAutoRefresh();
-                
-                document.getElementById('connectBtn').innerHTML = '<i class="fas fa-check"></i> Connected';
-                document.getElementById('connectBtn').classList.add('connected');
-                document.getElementById('walletInfo').textContent = 
-                    userAddress.substring(0, 6) + '...' + userAddress.substring(38);
-            }
-        }
-
-        // Update UI based on user stats
-        async function updateUI() {
-            if (!isConnected) return;
-            
             try {
-                // Get user stats
-                const stats = await contract.methods.getUserStats(userAddress).call();
-                userStats = {
-                    balance: stats[0],
-                    staked: stats[1],
-                    mined: stats[2],
-                    tier: stats[3],
-                    streak: stats[4],
-                    liquidityBoost: stats[5],
-                    referralRewards: stats[6],
-                    active: stats[7]
-                };
+                // Simulate MetaMask connection
+                showNotification('Connecting to MetaMask...', 'info');
                 
-                // Update UI elements
-                document.getElementById('userBalance').textContent = 
-                    formatTokenAmount(userStats.balance) + ' SA';
-                document.getElementById('userStaked').textContent = 
-                    formatTokenAmount(userStats.staked) + ' staked';
+                // In a real implementation, we would use:
+                // const provider = new ethers.providers.Web3Provider(window.ethereum);
+                // const accounts = await provider.send("eth_requestAccounts", []);
                 
-                // Update multipliers
-                const tierMultiplier = (100 + (userStats.tier * 20)) / 100;
-                const stakingBoost = calculateStakingBoost(userStats.staked);
-                const streakBonus = (100 + (Math.min(userStats.streak, 10) * 5)) / 100;
-                const totalMultiplier = tierMultiplier * stakingBoost * streakBonus;
+                // For simulation, use a mock address
+                const mockAddress = '0x' + Array.from({length: 40}, () => 
+                    Math.floor(Math.random() * 16).toString(16)).join('');
                 
-                document.getElementById('tierMultiplier').textContent = tierMultiplier.toFixed(1) + 'x';
-                document.getElementById('stakingBoost').textContent = stakingBoost.toFixed(1) + 'x';
-                document.getElementById('streakBonus').textContent = streakBonus.toFixed(1) + 'x';
-                document.getElementById('totalMultiplier').textContent = totalMultiplier.toFixed(1) + 'x';
-                
-                // Update button states
-                const registerBtn = document.getElementById('registerBtn');
-                const mineBtn = document.getElementById('mineBtn');
-                const claimReferralBtn = document.getElementById('claimReferralBtn');
-                
-                if (userStats.active) {
-                    registerBtn.disabled = true;
-                    registerBtn.innerHTML = '<i class="fas fa-check"></i> Registered';
-                    mineBtn.disabled = false;
-                } else {
-                    registerBtn.disabled = false;
-                    registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Register Miner';
-                    mineBtn.disabled = true;
+                // Check if this wallet is already registered to another account
+                const registeredWallets = JSON.parse(localStorage.getItem('registeredWallets') || '[]');
+                if (registeredWallets.includes(mockAddress)) {
+                    showNotification('This wallet is already registered to another account', 'error');
+                    return;
                 }
                 
-                if (userStats.referralRewards > 0) {
-                    claimReferralBtn.disabled = false;
-                    claimReferralBtn.innerHTML = `<i class="fas fa-hand-holding-usd"></i> Claim Referrals (${formatTokenAmount(userStats.referralRewards)} SA)`;
-                } else {
-                    claimReferralBtn.disabled = true;
-                    claimReferralBtn.innerHTML = '<i class="fas fa-hand-holding-usd"></i> Claim Referrals';
-                }
+                // Update state
+                state.walletConnected = true;
+                state.walletAddress = mockAddress;
+                state.minerData.wallet = mockAddress;
                 
-                // Load stakes
-                await loadStakes();
+                // Check network (simulated)
+                state.network = 'Ethereum Mainnet';
                 
-            } catch (error) {
-                console.error('Error updating UI:', error);
-            }
-        }
-
-        // Calculate staking boost
-        function calculateStakingBoost(stakedAmount) {
-            if (stakedAmount == 0) return 1.0;
-            const stakeInTokens = stakedAmount / 1e18;
-            if (stakeInTokens == 0) return 1.0;
-            
-            let logValue = 0;
-            let temp = stakeInTokens;
-            while (temp >= 10) {
-                logValue++;
-                temp /= 10;
-            }
-            
-            const additionalBoost = logValue * 20;
-            return 1.0 + (Math.min(additionalBoost, 100) / 100);
-        }
-
-        // Update global stats
-        async function updateStats() {
-            if (!isConnected) return;
-            
-            try {
-                // Get supply info
-                const supply = await contract.methods.getSupplyInfo().call();
-                supplyInfo = {
-                    maxSupply: supply[0],
-                    currentSupply: supply[1],
-                    burned: supply[2],
-                    availableToMine: supply[3],
-                    availableTeam: supply[4],
-                    availableLiquidity: supply[5],
-                    availableEcosystem: supply[6]
-                };
-                
-                // Get mining stats
-                const totalMined = await contract.methods.totalMined().call();
-                const minedToday = await contract.methods.minedToday().call();
-                const activeMiners = await contract.methods.activeMinersCount().call();
-                const nextHalvingTime = await contract.methods.getNextHalvingTime().call();
-                const currentHalving = await contract.methods.currentHalving().call();
-                const miningPaused = await contract.methods.miningPaused().call();
+                // Save to localStorage
+                localStorage.setItem('lastConnectedWallet', mockAddress);
                 
                 // Update UI
-                document.getElementById('totalMined').textContent = formatTokenAmount(totalMined) + ' SA';
-                document.getElementById('dailyMined').textContent = formatTokenAmount(minedToday) + ' today';
-                document.getElementById('activeMiners').textContent = activeMiners;
+                updateUI();
                 
-                const daysToHalving = Math.max(0, Math.floor((nextHalvingTime - Date.now()/1000) / 86400));
-                document.getElementById('nextHalving').textContent = daysToHalving + ' days';
-                document.getElementById('currentHalving').textContent = 'Halving #' + currentHalving;
+                // Show success notification
+                showNotification('Wallet connected successfully!', 'success');
                 
-                const statusBadge = document.getElementById('miningStatusBadge');
-                const miningStatus = document.getElementById('miningStatus');
-                
-                if (miningPaused) {
-                    statusBadge.textContent = 'Paused';
-                    statusBadge.className = 'status-badge paused';
-                    miningStatus.textContent = 'Paused';
-                    miningStatus.className = 'stat-change negative';
-                } else {
-                    statusBadge.textContent = 'Active';
-                    statusBadge.className = 'status-badge';
-                    miningStatus.textContent = 'Active';
-                    miningStatus.className = 'stat-change';
-                }
+                // Check if already registered
+                checkIfRegistered();
                 
             } catch (error) {
-                console.error('Error updating stats:', error);
+                console.error('Error connecting wallet:', error);
+                showNotification('Failed to connect wallet: ' + error.message, 'error');
             }
         }
 
-        // Load user's stakes
-        async function loadStakes() {
-            // Note: In a real implementation, you would need to call a view function
-            // that returns stake information or use events
-            const stakesTable = document.getElementById('stakesTable');
-            stakesTable.innerHTML = `
-                <tr>
-                    <td colspan="5" style="text-align: center;">Loading stakes...</td>
-                </tr>
-            `;
-            
-            // This is a placeholder - you would need to implement actual stake loading
-            // based on your contract's events or additional view functions
+        // Check if wallet is already registered
+        function checkIfRegistered() {
+            // In a real implementation, we would check the contract
+            // For simulation, we check localStorage
+            const registeredWallets = JSON.parse(localStorage.getItem('registeredWallets') || '[]');
+            if (registeredWallets.includes(state.walletAddress)) {
+                state.isRegistered = true;
+                // Load miner data
+                loadMinerData();
+            } else {
+                state.isRegistered = false;
+            }
+            updateUI();
+        }
+
+        // Load miner data from "Supabase" (localStorage simulation)
+        function loadMinerData() {
+            const savedData = localStorage.getItem(`minerData_${state.walletAddress}`);
+            if (savedData) {
+                state.minerData = JSON.parse(savedData);
+                updateUI();
+            }
         }
 
         // Register miner
         async function registerMiner() {
-            if (!isConnected) return;
+            if (!state.walletConnected) {
+                showNotification('Please connect your wallet first', 'warning');
+                return;
+            }
+            
+            if (state.isRegistered) {
+                showNotification('You are already registered as a miner', 'info');
+                return;
+            }
             
             try {
-                const referrer = document.getElementById('referralAddress').value;
-                let referrerAddress = '0x0000000000000000000000000000000000000000';
+                showNotification('Registering miner on blockchain...', 'info');
                 
-                if (referrer && web3.utils.isAddress(referrer)) {
-                    referrerAddress = referrer;
+                // Get referral address
+                const referralAddress = document.getElementById('referralAddress').value.trim();
+                
+                // Validate referral address (basic check)
+                if (referralAddress && !isValidAddress(referralAddress)) {
+                    showNotification('Invalid referral address format', 'error');
+                    return;
                 }
                 
-                showNotification('Registering miner...', 'warning');
+                // In a real implementation, we would call:
+                // const contract = new ethers.Contract(ENV.REACT_APP_SUPREMEAMER_CONTRACT_ADDRESS, ABI, signer);
+                // const tx = await contract.registerMiner(referralAddress || ethers.constants.AddressZero);
+                // await tx.wait();
                 
-                await contract.methods.registerMiner(referrerAddress)
-                    .send({ from: userAddress })
-                    .on('transactionHash', (hash) => {
-                        showNotification('Transaction submitted: ' + hash.substring(0, 10) + '...', 'warning');
-                    })
-                    .on('receipt', (receipt) => {
-                        showNotification('Successfully registered as miner!');
-                        updateUI();
-                        updateStats();
-                    })
-                    .on('error', (error) => {
-                        showNotification('Error: ' + error.message, 'error');
-                    });
-                    
+                // Simulate blockchain delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Update miner data
+                state.minerData.registeredAt = new Date().toISOString();
+                state.minerData.referral = referralAddress || null;
+                state.minerData.streak = 0;
+                state.minerData.tier = 0;
+                state.minerData.mined = 0;
+                state.minerData.staked = 0;
+                state.minerData.referralRewards = 0;
+                state.minerData.lastMine = null;
+                state.minerData.lastWithdrawal = null;
+                state.minerData.balance = 0;
+                state.minerData.liquidityBoost = 0;
+                state.minerData.active = true;
+                state.minerData.stakes = [];
+                state.minerData.referrals = [];
+                
+                // Save to "Supabase" (localStorage)
+                localStorage.setItem(`minerData_${state.walletAddress}`, JSON.stringify(state.minerData));
+                
+                // Add to registered wallets list
+                const registeredWallets = JSON.parse(localStorage.getItem('registeredWallets') || '[]');
+                registeredWallets.push(state.walletAddress);
+                localStorage.setItem('registeredWallets', JSON.stringify(registeredWallets));
+                
+                // Update device accounts
+                const deviceId = localStorage.getItem('deviceId');
+                const deviceAccounts = JSON.parse(localStorage.getItem('deviceAccounts') || '[]');
+                if (!deviceAccounts.includes(state.walletAddress)) {
+                    deviceAccounts.push(state.walletAddress);
+                    localStorage.setItem('deviceAccounts', JSON.stringify(deviceAccounts));
+                }
+                
+                // Update state
+                state.isRegistered = true;
+                
+                // Update UI
+                updateUI();
+                
+                showNotification('Successfully registered as a miner!', 'success');
+                
             } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+                console.error('Error registering miner:', error);
+                showNotification('Registration failed: ' + error.message, 'error');
             }
         }
 
         // Mine tokens
         async function mineTokens() {
-            if (!isConnected) return;
+            if (!state.walletConnected || !state.isRegistered) {
+                showNotification('Please connect wallet and register first', 'warning');
+                return;
+            }
+            
+            // Check if mining is on cooldown
+            if (isMiningOnCooldown()) {
+                showNotification('Mining is on cooldown. Please wait.', 'warning');
+                return;
+            }
+            
+            // Check daily mining cap
+            if (isDailyCapReached()) {
+                showNotification('Daily mining cap reached. Try again tomorrow.', 'warning');
+                return;
+            }
             
             try {
-                showNotification('Mining tokens...', 'warning');
+                // Start mining animation
+                const coin = document.getElementById('miningCoin');
+                const mineBtn = document.getElementById('mineBtn');
                 
-                await contract.methods.mine()
-                    .send({ from: userAddress })
-                    .on('transactionHash', (hash) => {
-                        showNotification('Transaction submitted: ' + hash.substring(0, 10) + '...', 'warning');
-                    })
-                    .on('receipt', (receipt) => {
-                        // Parse the mined amount from logs or receipt
-                        showNotification('Successfully mined tokens!');
-                        updateUI();
-                        updateStats();
-                    })
-                    .on('error', (error) => {
-                        showNotification('Error: ' + error.message, 'error');
-                    });
-                    
+                coin.classList.add('rotating');
+                mineBtn.disabled = true;
+                mineBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mining...';
+                state.miningInProgress = true;
+                
+                showNotification('Mining SA tokens...', 'info');
+                
+                // In a real implementation, we would call:
+                // const contract = new ethers.Contract(ENV.REACT_APP_SUPREMEAMER_CONTRACT_ADDRESS, ABI, signer);
+                // const tx = await contract.mine();
+                // await tx.wait();
+                
+                // Simulate mining delay
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Calculate mined amount with multiplier
+                const baseReward = 10; // Base mining reward
+                const multiplier = calculateTotalMultiplier() / 100;
+                const minedAmount = baseReward * multiplier;
+                
+                // Apply referral deduction (5%)
+                const referralDeduction = minedAmount * 0.05;
+                const netMined = minedAmount - referralDeduction;
+                
+                // Update miner data
+                state.minerData.mined += netMined;
+                state.minerData.balance += netMined;
+                
+                // Update streak
+                const now = new Date();
+                const lastMine = state.minerData.lastMine ? new Date(state.minerData.lastMine) : null;
+                
+                if (lastMine) {
+                    const hoursDiff = (now - lastMine) / (1000 * 60 * 60);
+                    if (hoursDiff <= 24) {
+                        state.minerData.streak += 1;
+                    } else if (hoursDiff > 48) {
+                        // Inactive for more than 2 days, reset streak
+                        state.minerData.streak = 1;
+                    } else {
+                        // Missed a day but not inactive
+                        state.minerData.streak = 1;
+                    }
+                } else {
+                    // First mine
+                    state.minerData.streak = 1;
+                }
+                
+                // Update tier based on streak
+                if (state.minerData.streak >= 30) state.minerData.tier = 3;
+                else if (state.minerData.streak >= 14) state.minerData.tier = 2;
+                else if (state.minerData.streak >= 7) state.minerData.tier = 1;
+                
+                // Update last mining time
+                state.minerData.lastMine = now.toISOString();
+                
+                // Handle referral rewards if applicable
+                if (state.minerData.referral) {
+                    state.minerData.referralRewards += referralDeduction;
+                }
+                
+                // Save updated data
+                saveMinerData();
+                
+                // Stop animation
+                coin.classList.remove('rotating');
+                mineBtn.disabled = false;
+                mineBtn.innerHTML = '<i class="fas fa-digging"></i> Mine Tokens';
+                state.miningInProgress = false;
+                
+                // Update UI
+                updateUI();
+                
+                // Show success notification
+                showNotification(`Successfully mined ${netMined.toFixed(2)} SA tokens!`, 'success');
+                
+                // Update chart
+                updateMiningChart();
+                
             } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+                console.error('Error mining tokens:', error);
+                showNotification('Mining failed: ' + error.message, 'error');
+                
+                // Reset UI on error
+                const coin = document.getElementById('miningCoin');
+                const mineBtn = document.getElementById('mineBtn');
+                
+                coin.classList.remove('rotating');
+                mineBtn.disabled = false;
+                mineBtn.innerHTML = '<i class="fas fa-digging"></i> Mine Tokens';
+                state.miningInProgress = false;
             }
         }
 
-        // Claim referral rewards
-        async function claimReferralRewards() {
-            if (!isConnected) return;
+        // Check if mining is on cooldown (1 hour interval)
+        function isMiningOnCooldown() {
+            if (!state.minerData.lastMine) return false;
             
-            try {
-                showNotification('Claiming referral rewards...', 'warning');
-                
-                await contract.methods.claimReferralRewards()
-                    .send({ from: userAddress })
-                    .on('transactionHash', (hash) => {
-                        showNotification('Transaction submitted: ' + hash.substring(0, 10) + '...', 'warning');
-                    })
-                    .on('receipt', (receipt) => {
-                        showNotification('Successfully claimed referral rewards!');
-                        updateUI();
-                    })
-                    .on('error', (error) => {
-                        showNotification('Error: ' + error.message, 'error');
-                    });
-                    
-            } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+            const lastMine = new Date(state.minerData.lastMine);
+            const now = new Date();
+            const hoursDiff = (now - lastMine) / (1000 * 60 * 60);
+            
+            return hoursDiff < 1;
+        }
+
+        // Check if daily mining cap is reached
+        function isDailyCapReached() {
+            // Simulate daily cap check
+            // In a real implementation, this would check the contract
+            const today = new Date().toDateString();
+            const lastMineDate = state.minerData.lastMine ? new Date(state.minerData.lastMine).toDateString() : null;
+            
+            // If last mine was today, check count
+            if (lastMineDate === today) {
+                // Simulate max 10 mines per day
+                const dailyMines = localStorage.getItem(`dailyMines_${state.walletAddress}_${today}`) || 0;
+                return parseInt(dailyMines) >= 10;
             }
+            
+            return false;
+        }
+
+        // Calculate total multiplier
+        function calculateTotalMultiplier() {
+            let multiplier = 100; // Base 100%
+            
+            // Tier bonus
+            const tierBonus = state.minerData.tier * 25; // 25% per tier
+            multiplier += tierBonus;
+            
+            // Staking boost
+            const stakingBoost = Math.min(state.minerData.staked / 1000 * 10, 50); // Max 50%
+            multiplier += stakingBoost;
+            
+            // Streak bonus
+            const streakBonus = Math.min(state.minerData.streak * 2, 100); // Max 100%
+            multiplier += streakBonus;
+            
+            // Liquidity boost
+            multiplier += state.minerData.liquidityBoost;
+            
+            // Cap at 300%
+            return Math.min(multiplier, 300);
         }
 
         // Stake tokens
         async function stakeTokens() {
-            if (!isConnected) return;
-            
-            const amount = document.getElementById('stakeAmount').value;
-            const lockDays = document.getElementById('lockDays').value;
-            
-            if (!amount || amount <= 0) {
-                showNotification('Please enter a valid amount', 'error');
+            if (!state.walletConnected || !state.isRegistered) {
+                showNotification('Please connect wallet and register first', 'warning');
                 return;
             }
             
-            const amountWei = web3.utils.toWei(amount, 'ether');
+            const amountInput = document.getElementById('stakeAmount');
+            const amount = parseFloat(amountInput.value);
+            const lockDays = parseInt(document.getElementById('lockDays').value);
+            
+            if (!amount || amount <= 0) {
+                showNotification('Please enter a valid staking amount', 'warning');
+                return;
+            }
+            
+            if (amount > state.minerData.balance) {
+                showNotification('Insufficient balance for staking', 'error');
+                return;
+            }
+            
+            if (lockDays < 30 || lockDays > 365) {
+                showNotification('Lock period must be between 30 and 365 days', 'warning');
+                return;
+            }
             
             try {
-                showNotification('Staking tokens...', 'warning');
+                showNotification('Staking tokens on blockchain...', 'info');
                 
-                await contract.methods.stakeTokens(amountWei, lockDays)
-                    .send({ from: userAddress })
-                    .on('transactionHash', (hash) => {
-                        showNotification('Transaction submitted: ' + hash.substring(0, 10) + '...', 'warning');
-                    })
-                    .on('receipt', (receipt) => {
-                        showNotification('Successfully staked tokens!');
-                        updateUI();
-                        document.getElementById('stakeAmount').value = '';
-                    })
-                    .on('error', (error) => {
-                        showNotification('Error: ' + error.message, 'error');
-                    });
-                    
+                // In a real implementation, we would call:
+                // const contract = new ethers.Contract(ENV.REACT_APP_SUPREMEAMER_CONTRACT_ADDRESS, ABI, signer);
+                // const tx = await contract.stakeTokens(ethers.utils.parseEther(amount.toString()), lockDays);
+                // await tx.wait();
+                
+                // Simulate blockchain delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Calculate APY and rewards
+                const baseAPY = 15; // 15% base APY
+                const effectiveAPY = baseAPY * (100 + (lockDays - 30) * 100 / 335) / 100;
+                const secondsPerYear = 31536000;
+                const reward = (amount * effectiveAPY * lockDays * 86400) / (10000 * secondsPerYear);
+                
+                // Create stake object
+                const stake = {
+                    amount: amount,
+                    lockDays: lockDays,
+                    startDate: new Date().toISOString(),
+                    unlockDate: new Date(Date.now() + lockDays * 86400000).toISOString(),
+                    reward: reward,
+                    claimed: false,
+                    tier: state.minerData.tier
+                };
+                
+                // Update miner data
+                state.minerData.staked += amount;
+                state.minerData.balance -= amount;
+                state.minerData.stakes.push(stake);
+                
+                // Save updated data
+                saveMinerData();
+                
+                // Update UI
+                updateUI();
+                
+                // Clear input
+                amountInput.value = '';
+                
+                showNotification(`Successfully staked ${amount} SA tokens for ${lockDays} days!`, 'success');
+                
             } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+                console.error('Error staking tokens:', error);
+                showNotification('Staking failed: ' + error.message, 'error');
             }
         }
 
         // Withdraw tokens
         async function withdrawTokens() {
-            const modal = document.getElementById('withdrawModal');
-            modal.classList.add('active');
-        }
-
-        async function confirmWithdraw() {
-            if (!isConnected) return;
+            if (!state.walletConnected || !state.isRegistered) {
+                showNotification('Please connect wallet and register first', 'warning');
+                return;
+            }
             
-            const amount = document.getElementById('withdrawAmount').value;
+            const amountInput = document.getElementById('withdrawAmount');
+            const amount = parseFloat(amountInput.value);
             
             if (!amount || amount <= 0) {
-                showNotification('Please enter a valid amount', 'error');
+                showNotification('Please enter a valid withdrawal amount', 'warning');
                 return;
             }
             
-            const amountWei = web3.utils.toWei(amount, 'ether');
-            
-            try {
-                showNotification('Withdrawing tokens...', 'warning');
-                
-                await contract.methods.withdrawTokens(amountWei)
-                    .send({ from: userAddress })
-                    .on('transactionHash', (hash) => {
-                        showNotification('Transaction submitted: ' + hash.substring(0, 10) + '...', 'warning');
-                    })
-                    .on('receipt', (receipt) => {
-                        showNotification('Successfully withdrew tokens!');
-                        updateUI();
-                        closeModal('withdrawModal');
-                        document.getElementById('withdrawAmount').value = '';
-                    })
-                    .on('error', (error) => {
-                        showNotification('Error: ' + error.message, 'error');
-                    });
-                    
-            } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
-            }
-        }
-
-        // Burn tokens
-        async function burnTokens() {
-            const modal = document.getElementById('burnModal');
-            modal.classList.add('active');
-        }
-
-        async function confirmBurn() {
-            if (!isConnected) return;
-            
-            const amount = document.getElementById('burnAmount').value;
-            
-            if (!amount || amount <= 0) {
-                showNotification('Please enter a valid amount', 'error');
-                return;
-            }
-            
-            const amountWei = web3.utils.toWei(amount, 'ether');
-            
-            try {
-                showNotification('Burning tokens...', 'warning');
-                
-                await contract.methods.burn(amountWei)
-                    .send({ from: userAddress })
-                    .on('transactionHash', (hash) => {
-                        showNotification('Transaction submitted: ' + hash.substring(0, 10) + '...', 'warning');
-                    })
-                    .on('receipt', (receipt) => {
-                        showNotification('Successfully burned tokens!');
-                        updateUI();
-                        updateStats();
-                        closeModal('burnModal');
-                        document.getElementById('burnAmount').value = '';
-                    })
-                    .on('error', (error) => {
-                        showNotification('Error: ' + error.message, 'error');
-                    });
-                    
-            } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
-            }
-        }
-
-        // Emergency withdraw
-        async function emergencyWithdraw() {
-            if (!isConnected) return;
-            
-            if (!confirm('WARNING: Emergency withdraw will forfeit your staking rewards. Continue?')) {
+            if (amount > state.minerData.balance) {
+                showNotification('Insufficient balance for withdrawal', 'error');
                 return;
             }
             
             try {
-                showNotification('Initiating emergency withdraw...', 'warning');
+                showNotification('Withdrawing tokens from blockchain...', 'info');
                 
-                await contract.methods.emergencyWithdraw()
-                    .send({ from: userAddress })
-                    .on('transactionHash', (hash) => {
-                        showNotification('Transaction submitted: ' + hash.substring(0, 10) + '...', 'warning');
-                    })
-                    .on('receipt', (receipt) => {
-                        showNotification('Emergency withdraw completed!');
-                        updateUI();
-                    })
-                    .on('error', (error) => {
-                        showNotification('Error: ' + error.message, 'error');
-                    });
-                    
+                // In a real implementation, we would call:
+                // const contract = new ethers.Contract(ENV.REACT_APP_SUPREMEAMER_CONTRACT_ADDRESS, ABI, signer);
+                // const tx = await contract.withdrawTokens(ethers.utils.parseEther(amount.toString()));
+                // await tx.wait();
+                
+                // Simulate blockchain delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Update miner data
+                state.minerData.balance -= amount;
+                state.minerData.lastWithdrawal = new Date().toISOString();
+                
+                // Save updated data
+                saveMinerData();
+                
+                // Update UI
+                updateUI();
+                
+                // Clear input
+                amountInput.value = '';
+                
+                showNotification(`Successfully withdrew ${amount} SA tokens!`, 'success');
+                
             } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+                console.error('Error withdrawing tokens:', error);
+                showNotification('Withdrawal failed: ' + error.message, 'error');
             }
+        }
+
+        // Claim referral rewards
+        async function claimReferralRewards() {
+            if (!state.walletConnected || !state.isRegistered) {
+                showNotification('Please connect wallet and register first', 'warning');
+                return;
+            }
+            
+            if (state.minerData.referralRewards <= 0) {
+                showNotification('No referral rewards available to claim', 'info');
+                return;
+            }
+            
+            try {
+                showNotification('Claiming referral rewards...', 'info');
+                
+                // In a real implementation, we would call:
+                // const contract = new ethers.Contract(ENV.REACT_APP_SUPREMEAMER_CONTRACT_ADDRESS, ABI, signer);
+                // const tx = await contract.claimReferralRewards();
+                // await tx.wait();
+                
+                // Simulate blockchain delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Update miner data
+                const rewards = state.minerData.referralRewards;
+                state.minerData.balance += rewards;
+                state.minerData.referralRewards = 0;
+                
+                // Save updated data
+                saveMinerData();
+                
+                // Update UI
+                updateUI();
+                
+                showNotification(`Successfully claimed ${rewards.toFixed(2)} SA referral rewards!`, 'success');
+                
+            } catch (error) {
+                console.error('Error claiming referral rewards:', error);
+                showNotification('Claim failed: ' + error.message, 'error');
+            }
+        }
+
+        // Save miner data to "Supabase" (localStorage)
+        function saveMinerData() {
+            if (state.walletAddress) {
+                localStorage.setItem(`minerData_${state.walletAddress}`, JSON.stringify(state.minerData));
+                localStorage.setItem('supremeAmerMinerData', JSON.stringify(state.minerData));
+            }
+        }
+
+        // Update UI based on state
+        function updateUI() {
+            // Update wallet display
+            if (state.walletConnected && state.walletAddress) {
+                document.getElementById('connectWalletBtn').style.display = 'none';
+                document.getElementById('connectedWallet').style.display = 'flex';
+                document.getElementById('walletAddress').textContent = 
+                    state.walletAddress.substring(0, 6) + '...' + state.walletAddress.substring(38);
+                
+                // Update network status
+                const networkStatus = document.getElementById('networkStatus');
+                networkStatus.innerHTML = '<i class="fas fa-circle" style="color: var(--success);"></i> Network: ' + (state.network || 'Connected');
+            } else {
+                document.getElementById('connectWalletBtn').style.display = 'block';
+                document.getElementById('connectedWallet').style.display = 'none';
+                document.getElementById('networkStatus').innerHTML = '<i class="fas fa-circle"></i> Network: Unknown';
+            }
+            
+            // Update registration card
+            const registrationCard = document.getElementById('registrationCard');
+            if (state.isRegistered) {
+                registrationCard.innerHTML = `
+                    <h2 class="card-title"><i class="fas fa-user-check"></i> Miner Registered</h2>
+                    <div style="text-align: center; padding: 20px;">
+                        <i class="fas fa-check-circle" style="font-size: 48px; color: var(--success); margin-bottom: 15px;"></i>
+                        <p style="color: var(--text-secondary);">You are registered as a miner!</p>
+                        <p style="font-size: 14px; color: var(--text-secondary); margin-top: 10px;">Registered on: ${state.minerData.registeredAt ? new Date(state.minerData.registeredAt).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                `;
+            }
+            
+            // Update mining stats
+            if (state.minerData) {
+                // Mining stats
+                document.getElementById('minedTokens').textContent = state.minerData.mined.toFixed(2);
+                document.getElementById('miningStreak').textContent = state.minerData.streak + ' days';
+                document.getElementById('minerTier').textContent = state.minerData.tier;
+                
+                // Calculate next mining time
+                let nextMiningText = 'Ready';
+                if (state.minerData.lastMine) {
+                    const lastMine = new Date(state.minerData.lastMine);
+                    const nextMine = new Date(lastMine.getTime() + 60 * 60 * 1000); // 1 hour later
+                    const now = new Date();
+                    
+                    if (nextMine > now) {
+                        const diffMs = nextMine - now;
+                        const diffMins = Math.ceil(diffMs / (1000 * 60));
+                        nextMiningText = diffMins + ' min';
+                    }
+                }
+                document.getElementById('nextMiningTime').textContent = nextMiningText;
+                
+                // Dashboard stats
+                document.getElementById('saBalance').textContent = state.minerData.balance.toFixed(2);
+                document.getElementById('totalMined').textContent = state.minerData.mined.toFixed(2);
+                document.getElementById('stakedAmount').textContent = state.minerData.staked.toFixed(2);
+                document.getElementById('referralRewards').textContent = state.minerData.referralRewards.toFixed(2);
+                document.getElementById('activeStatus').textContent = state.minerData.active ? 'Active' : 'Inactive';
+                document.getElementById('liquidityBoost').textContent = state.minerData.liquidityBoost + '%';
+                
+                // Multiplier breakdown
+                const totalMultiplier = calculateTotalMultiplier();
+                document.getElementById('totalMultiplier').textContent = totalMultiplier + '%';
+                document.getElementById('multiplierBar').style.width = (totalMultiplier / 300 * 100) + '%';
+                
+                // Calculate individual bonuses
+                const tierBonus = state.minerData.tier * 25;
+                const stakingBoost = Math.min(state.minerData.staked / 1000 * 10, 50);
+                const streakBonus = Math.min(state.minerData.streak * 2, 100);
+                
+                document.getElementById('tierBonus').textContent = tierBonus + '%';
+                document.getElementById('stakingBoost').textContent = stakingBoost.toFixed(1) + '%';
+                document.getElementById('streakBonus').textContent = streakBonus + '%';
+                document.getElementById('liquidityBonus').textContent = state.minerData.liquidityBoost + '%';
+                
+                document.getElementById('tierBar').style.width = (tierBonus / 75 * 100) + '%';
+                document.getElementById('stakingBar').style.width = (stakingBoost / 50 * 100) + '%';
+                document.getElementById('streakBar').style.width = (streakBonus / 100 * 100) + '%';
+                document.getElementById('liquidityBar').style.width = (state.minerData.liquidityBoost / 100 * 100) + '%';
+                
+                // Referral info
+                document.getElementById('referralRewardsAvailable').textContent = state.minerData.referralRewards.toFixed(2) + ' SA';
+                document.getElementById('totalReferrals').textContent = state.minerData.referrals.length;
+                
+                // Withdrawal info
+                document.getElementById('availableBalance').textContent = state.minerData.balance.toFixed(2);
+                document.getElementById('lastWithdrawal').textContent = state.minerData.lastWithdrawal ? 
+                    new Date(state.minerData.lastWithdrawal).toLocaleDateString() : 'Never';
+                
+                // Update withdraw bar
+                updateWithdrawBar();
+                
+                // Update active stakes
+                updateActiveStakesDisplay();
+                
+                // Update referral list
+                updateReferralsList();
+                
+                // Update referral link
+                if (state.walletAddress) {
+                    document.getElementById('referralLink').value = `https://supremeamer.com/ref/${state.walletAddress}`;
+                }
+            }
+            
+            // Update supply info
+            document.getElementById('totalSupply').textContent = contractData.totalSupply.toLocaleString();
+            document.getElementById('burnedTokens').textContent = contractData.burnedTokens.toLocaleString();
+            document.getElementById('miningSupplyLeft').textContent = contractData.miningSupply.toLocaleString();
+            document.getElementById('activeMiners').textContent = contractData.activeMiners.toLocaleString();
+            document.getElementById('nextHalving').textContent = contractData.halvingDaysLeft + ' days';
+            document.getElementById('halvingStage').textContent = contractData.halvingStage;
+            
+            // Enable/disable buttons based on state
+            const mineBtn = document.getElementById('mineBtn');
+            mineBtn.disabled = !state.walletConnected || !state.isRegistered || state.miningInProgress || isMiningOnCooldown();
+            
+            const registerBtn = document.getElementById('registerBtn');
+            if (registerBtn) {
+                registerBtn.disabled = !state.walletConnected || state.isRegistered;
+            }
+        }
+
+        // Update lock days display
+        function updateLockDaysDisplay() {
+            const lockDays = document.getElementById('lockDays').value;
+            document.getElementById('lockDaysValue').textContent = lockDays;
+            
+            // Calculate and display estimated APY
+            const baseAPY = 15; // 15% base APY
+            const effectiveAPY = baseAPY * (100 + (lockDays - 30) * 100 / 335) / 100;
+            document.getElementById('estimatedAPY').textContent = effectiveAPY.toFixed(1) + '%';
+            document.getElementById('apyBar').style.width = (effectiveAPY / 50 * 100) + '%';
+        }
+
+        // Update withdraw bar
+        function updateWithdrawBar() {
+            const amountInput = document.getElementById('withdrawAmount');
+            const amount = parseFloat(amountInput.value) || 0;
+            const balance = state.minerData ? state.minerData.balance : 0;
+            
+            if (balance > 0) {
+                const percentage = Math.min((amount / balance) * 100, 100);
+                document.getElementById('withdrawBar').style.width = percentage + '%';
+            } else {
+                document.getElementById('withdrawBar').style.width = '0%';
+            }
+        }
+
+        // Update active stakes display
+        function updateActiveStakesDisplay() {
+            const stakesContainer = document.getElementById('activeStakesContainer');
+            const stakesList = document.getElementById('activeStakesList');
+            
+            if (!state.minerData || state.minerData.stakes.length === 0) {
+                stakesContainer.style.display = 'none';
+                return;
+            }
+            
+            stakesContainer.style.display = 'block';
+            
+            // Clear current list
+            stakesList.innerHTML = '';
+            
+            // Add each stake
+            state.minerData.stakes.forEach((stake, index) => {
+                const unlockDate = new Date(stake.unlockDate);
+                const now = new Date();
+                const isUnlocked = unlockDate <= now;
+                
+                const stakeElement = document.createElement('div');
+                stakeElement.className = 'stat-item';
+                stakeElement.style.marginBottom = '10px';
+                stakeElement.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>${stake.amount} SA</span>
+                        <span style="color: ${isUnlocked ? 'var(--success)' : 'var(--warning)'}">
+                            ${isUnlocked ? 'Unlocked' : unlockDate.toLocaleDateString()}
+                        </span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        ${stake.lockDays} days lock • Reward: ${stake.reward.toFixed(2)} SA
+                    </div>
+                    ${isUnlocked ? `<button class="action-btn stake-btn" style="margin-top: 10px; padding: 8px; font-size: 14px;" onclick="unstakeTokens(${index})">
+                        <i class="fas fa-unlock"></i> Unstake
+                    </button>` : ''}
+                `;
+                
+                stakesList.appendChild(stakeElement);
+            });
+        }
+
+        // Unstake tokens (simulated)
+        async function unstakeTokens(stakeIndex) {
+            try {
+                showNotification('Unstaking tokens...', 'info');
+                
+                // Get the stake
+                const stake = state.minerData.stakes[stakeIndex];
+                
+                // In a real implementation, we would call:
+                // const contract = new ethers.Contract(ENV.REACT_APP_SUPREMEAMER_CONTRACT_ADDRESS, ABI, signer);
+                // const tx = await contract.unstakeTokens(stakeIndex);
+                // await tx.wait();
+                
+                // Simulate blockchain delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Update miner data
+                state.minerData.balance += stake.amount + stake.reward;
+                state.minerData.staked -= stake.amount;
+                state.minerData.stakes.splice(stakeIndex, 1);
+                
+                // Save updated data
+                saveMinerData();
+                
+                // Update UI
+                updateUI();
+                
+                showNotification(`Successfully unstaked ${stake.amount} SA tokens with ${stake.reward.toFixed(2)} SA reward!`, 'success');
+                
+            } catch (error) {
+                console.error('Error unstaking tokens:', error);
+                showNotification('Unstaking failed: ' + error.message, 'error');
+            }
+        }
+
+        // Update referrals list
+        function updateReferralsList() {
+            const referralsList = document.getElementById('referralsList');
+            
+            if (!state.minerData || state.minerData.referrals.length === 0) {
+                referralsList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">No referrals yet</div>';
+                return;
+            }
+            
+            let html = '';
+            state.minerData.referrals.forEach((ref, index) => {
+                html += `
+                    <div style="display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <div>
+                            <div>${ref.wallet.substring(0, 8)}...${ref.wallet.substring(36)}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${new Date(ref.date).toLocaleDateString()}</div>
+                        </div>
+                        <div style="color: var(--primary-gold); font-weight: bold;">${ref.reward.toFixed(2)} SA</div>
+                    </div>
+                `;
+            });
+            
+            referralsList.innerHTML = html;
+        }
+
+        // Copy referral link
+        function copyReferralLink() {
+            const referralLink = document.getElementById('referralLink');
+            referralLink.select();
+            referralLink.setSelectionRange(0, 99999); // For mobile devices
+            
+            try {
+                navigator.clipboard.writeText(referralLink.value);
+                showNotification('Referral link copied to clipboard!', 'success');
+            } catch (err) {
+                // Fallback for older browsers
+                document.execCommand('copy');
+                showNotification('Referral link copied!', 'success');
+            }
+        }
+
+        // Switch tabs
+        function switchTab(tabId) {
+            // Update active tab button
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+            
+            // Update active tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabId}Tab`).classList.add('active');
+            
+            state.activeTab = tabId;
         }
 
         // Show notification
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            const notificationText = document.getElementById('notificationText');
+        function showNotification(message, type = 'info') {
+            const notificationArea = document.getElementById('notificationArea');
+            const notificationId = state.notificationId++;
             
-            notificationText.textContent = message;
-            notification.className = 'notification ' + type;
-            notification.style.display = 'flex';
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.id = `notification-${notificationId}`;
             
+            // Set icon based on type
+            let icon = 'info-circle';
+            if (type === 'success') icon = 'check-circle';
+            if (type === 'error') icon = 'exclamation-circle';
+            if (type === 'warning') icon = 'exclamation-triangle';
+            
+            notification.innerHTML = `
+                <i class="fas fa-${icon}"></i>
+                <div>${message}</div>
+            `;
+            
+            notificationArea.appendChild(notification);
+            
+            // Show notification
             setTimeout(() => {
-                notification.style.display = 'none';
-            }, 5000);
-        }
-
-        // Close modal
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
-
-        // Format token amount
-        function formatTokenAmount(amount) {
-            const amountNum = parseFloat(web3.utils.fromWei(amount, 'ether'));
-            if (amountNum >= 1000000) {
-                return (amountNum / 1000000).toFixed(2) + 'M';
-            } else if (amountNum >= 1000) {
-                return (amountNum / 1000).toFixed(2) + 'K';
-            } else {
-                return amountNum.toFixed(2);
-            }
-        }
-
-        // Start auto-refresh
-        function startAutoRefresh() {
-            setInterval(() => {
-                if (isConnected) {
-                    updateStats();
-                }
-            }, 30000); // Refresh every 30 seconds
-        }
-
-        // Initialize tiers display
-        function initTiersDisplay() {
-            const tiers = [
-                { name: 'Bronze', multiplier: '1.0x', stake: '0 SA' },
-                { name: 'Silver', multiplier: '1.2x', stake: '1,000 SA' },
-                { name: 'Gold', multiplier: '1.5x', stake: '10,000 SA' },
-                { name: 'Platinum', multiplier: '1.8x', stake: '50,000 SA' },
-                { name: 'Diamond', multiplier: '2.0x', stake: '100,000 SA' }
-            ];
+                notification.classList.add('show');
+            }, 10);
             
-            const container = document.getElementById('tiersContainer');
-            container.innerHTML = '';
-            
-            tiers.forEach((tier, index) => {
-                const tierCard = document.createElement('div');
-                tierCard.className = 'tier-card';
-                tierCard.innerHTML = `
-                    <div class="tier-name">${tier.name}</div>
-                    <div class="tier-multiplier">${tier.multiplier}</div>
-                    <div class="tier-stake">${tier.stake}</div>
-                `;
-                container.appendChild(tierCard);
-            });
-        }
-
-        // Update APY display
-        function updateAPYDisplay() {
-            const lockDays = document.getElementById('lockDays').value;
-            const lockDaysValue = document.getElementById('lockDaysValue');
-            const apyDisplay = document.getElementById('apyDisplay');
-            const estimatedReward = document.getElementById('estimatedReward');
-            const stakeAmount = document.getElementById('stakeAmount').value;
-            
-            lockDaysValue.textContent = lockDays;
-            
-            // Calculate APY based on lock period
-            const baseAPY = 15; // 15% base
-            const multiplier = 1 + ((lockDays - 30) * 1 / 335); // Linear from 30-365 days
-            const effectiveAPY = baseAPY * multiplier;
-            
-            apyDisplay.textContent = `APY: ${effectiveAPY.toFixed(1)}%`;
-            
-            // Calculate estimated reward
-            if (stakeAmount && stakeAmount > 0) {
-                const annualReward = stakeAmount * (effectiveAPY / 100);
-                const lockReward = annualReward * (lockDays / 365);
-                estimatedReward.textContent = `Estimated Reward: ${lockReward.toFixed(2)} SA`;
-            } else {
-                estimatedReward.textContent = 'Estimated Reward: 0 SA';
-            }
-        }
-
-        // Event listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize tiers
-            initTiersDisplay();
-            
-            // Connect wallet button
-            document.getElementById('connectBtn').addEventListener('click', connectWallet);
-            
-            // Mining buttons
-            document.getElementById('registerBtn').addEventListener('click', registerMiner);
-            document.getElementById('mineBtn').addEventListener('click', mineTokens);
-            document.getElementById('claimReferralBtn').addEventListener('click', claimReferralRewards);
-            document.getElementById('withdrawBtn').addEventListener('click', withdrawTokens);
-            
-            // Staking buttons
-            document.getElementById('stakeBtn').addEventListener('click', stakeTokens);
-            
-            // Token management buttons
-            document.getElementById('burnBtn').addEventListener('click', burnTokens);
-            document.getElementById('emergencyBtn').addEventListener('click', emergencyWithdraw);
-            
-            // Modal confirm buttons
-            document.getElementById('confirmWithdrawBtn').addEventListener('click', confirmWithdraw);
-            document.getElementById('confirmBurnBtn').addEventListener('click', confirmBurn);
-            
-            // Range input listeners
-            document.getElementById('lockDays').addEventListener('input', updateAPYDisplay);
-            document.getElementById('stakeAmount').addEventListener('input', updateAPYDisplay);
-            
-            // Update APY display initially
-            updateAPYDisplay();
-            
-            // Auto-connect if already connected
-            if (window.ethereum && window.ethereum.selectedAddress) {
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
                 setTimeout(() => {
-                    connectWallet();
-                }, 1000);
-            }
-        });
-
-        // Handle account changes
-        if (window.ethereum) {
-            window.ethereum.on('accountsChanged', (accounts) => {
-                if (accounts.length > 0) {
-                    userAddress = accounts[0];
-                    updateUI();
-                    updateStats();
-                } else {
-                    // User disconnected wallet
-                    isConnected = false;
-                    location.reload();
-                }
-            });
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 500);
+            }, 5000);
             
-            window.ethereum.on('chainChanged', () => {
-                location.reload();
+            // Click to dismiss
+            notification.addEventListener('click', () => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 500);
             });
         }
+
+        // Initialize charts
+        function initializeCharts() {
+            const ctx = document.getElementById('miningChart').getContext('2d');
+            
+            // Create gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(0, 243, 255, 0.3)');
+            gradient.addColorStop(1, 'rgba(0, 243, 255, 0)');
+            
+            // Mock mining data
+            const labels = [];
+            const data = [];
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+                
+                // Generate mock mining data
+                data.push(Math.floor(Math.random() * 50) + 20);
+            }
+            
+            window.miningChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Daily Mining',
+                        data: data,
+                        backgroundColor: gradient,
+                        borderColor: 'var(--primary-blue)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'var(--primary-blue)',
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'var(--text-primary)'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'var(--text-secondary)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'var(--text-secondary)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update mining chart
+        function updateMiningChart() {
+            if (!window.miningChart) return;
+            
+            // Add new data point
+            const newDataPoint = Math.floor(Math.random() * 30) + 30;
+            
+            // Remove first data point and add new one
+            window.miningChart.data.labels.push(new Date().toLocaleDateString('en-US', { weekday: 'short' }));
+            window.miningChart.data.labels.shift();
+            
+            window.miningChart.data.datasets[0].data.push(newDataPoint);
+            window.miningChart.data.datasets[0].data.shift();
+            
+            window.miningChart.update();
+        }
+
+        // Simulate real-time updates
+        function simulateRealTimeUpdates() {
+            // Update next mining time every minute
+            setInterval(() => {
+                if (state.minerData && state.minerData.lastMine) {
+                    updateUI();
+                }
+            }, 60000);
+            
+            // Simulate supply changes
+            setInterval(() => {
+                // Randomly update some supply metrics
+                contractData.activeMiners += Math.floor(Math.random() * 3) - 1; // +/- 1
+                contractData.activeMiners = Math.max(1000, contractData.activeMiners);
+                
+                contractData.miningSupply -= Math.floor(Math.random() * 10);
+                contractData.miningSupply = Math.max(0, contractData.miningSupply);
+                
+                // Update halving countdown
+                if (contractData.halvingDaysLeft > 0) {
+                    contractData.halvingDaysLeft -= 0.01; // Simulate time passing
+                }
+                
+                // Update UI if on supply tab
+                if (state.activeTab === 'dashboard') {
+                    updateUI();
+                }
+            }, 10000);
+        }
+
+        // Helper function to validate address format
+        function isValidAddress(address) {
+            return /^0x[a-fA-F0-9]{40}$/.test(address);
+        }
+
+        // Make functions available globally for inline event handlers
+        window.unstakeTokens = unstakeTokens;
     </script>
 </body>
 </html>
