@@ -1,431 +1,799 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.32;
+pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-
-/**
- * @title SupremeAmerToken - 20+ Year Sustainable Mining
- * @dev Mining designed to last decades, not years
- * Total Supply: 20,000,000 SA
- */
-contract SupremeAmerToken is ERC20, AccessControl {
-    // ============================
-    // ROLES
-    // ============================
-    bytes32 public constant MINING_ADMIN_ROLE = keccak256("MINING_ADMIN");
-    bytes32 public constant SAFETY_ADMIN_ROLE = keccak256("SAFETY_ADMIN");
-    
-    // ============================
-    // SUSTAINABLE CONFIGURATION FOR 20+ YEARS
-    // ============================
-    uint256 public constant TOTAL_SUPPLY = 20_000_000 * 10**18;
-    
-    // UPDATED REWARDS AS REQUESTED:
-    // Basic: 0.015 SA/day
-    // Premium: 0.05 SA/day (3.33x basic)
-    // Ultra: 0.085 SA/day (5.67x basic)
-    uint256 public constant DAILY_BASIC_REWARD = 15 * 10**15; // 0.015 SA (15 * 10^15 wei)
-    uint256 public constant DAILY_PREMIUM_REWARD = 50 * 10**15; // 0.05 SA (50 * 10^15 wei)
-    uint256 public constant DAILY_ULTRA_REWARD = 85 * 10**15; // 0.085 SA (85 * 10^15 wei)
-    
-    // INCREASED MINING POOL: 50% (10,000,000 SA)
-    uint256 public constant VESTED_PERCENT = 25;    // 5,000,000 SA
-    uint256 public constant MINING_PERCENT = 50;    // 10,000,000 SA
-    uint256 public constant LIQUIDITY_PERCENT = 25; // 5,000,000 SA
-    
-    // ============================
-    // MINING SYSTEM
-    // ============================
+contract SupremeAmer {
+    // ============ STRUCTS ============
     struct Miner {
-        uint40 lastClaimTime;
-        uint40 upgradeExpiry;
-        uint32 dailyClaims;
-        uint16 lastClaimDate;
-        uint104 totalClaimed;
-        uint8 miningTier;
-        bool isActive;
+        uint96 totalMined;
+        uint40 lastMineTime;
+        uint8 miningBoost;
+        uint64 stakedAmount;
+        uint16 referralCount;
+        address referrer;
+        uint8 tier;
+        uint40 lastClaim;
+        uint64 pendingRewards;
+        uint8 streak;
+        bool autoCompound;
+        uint256 lastWithdrawTime;
     }
     
+    struct Stake {
+        uint64 amount;
+        uint40 startTime;
+        uint16 lockPeriod;
+        uint64 rewardDebt;
+        uint8 multiplier;
+        bool active;
+    }
+    
+    struct Tier {
+        uint64 requiredStake;
+        uint8 miningMultiplier;
+        uint8 stakingBoost;
+        uint8 feeDiscount;
+    }
+    
+    struct VestingSchedule {
+        uint256 totalAmount;
+        uint256 claimed;
+        uint256 startTime;
+        uint256 vestingDuration;
+        uint256 cliffDuration;
+    }
+    
+    // ============ CONSTANTS ============
+    uint256 constant MAX_SUPPLY = 1e9 * 1e18;          // 1,000,000,000 SA
+    uint256 constant INITIAL_SUPPLY = 150e6 * 1e18;    // 150,000,000 SA (15%)
+    uint256 constant MINING_SUPPLY = 400e6 * 1e18;     // 400,000,000 SA (40%)
+    uint256 constant TEAM_SUPPLY = 100e6 * 1e18;       // 100,000,000 SA (10%)
+    uint256 constant LIQUIDITY_SUPPLY = 200e6 * 1e18;  // 200,000,000 SA (20%)
+    uint256 constant ECOSYSTEM_SUPPLY = 150e6 * 1e18;  // 150,000,000 SA (15%)
+    
+    uint256 constant SECONDS_PER_YEAR = 31536000;
+    uint256 constant WITHDRAW_FEE_DURATION = 30 days;  // 30-day fee period
+    uint256 constant BASE_WITHDRAW_FEE = 1000;         // 10% initial fee
+    uint256 constant MIN_WITHDRAW_FEE = 100;           // 1% minimum fee
+    
+    // ============ STATE VARIABLES ============
+    string public name = "SupremeAmer";
+    string public symbol = "SA";
+    uint8 public decimals = 18;
+    
+    uint256 public totalSupply;
+    uint256 public totalMined;
+    uint256 public totalStaked;
+    uint256 public totalBurned;
+    uint256 public totalRevenue;
+    uint256 public activeMiners;
+    uint256 public launchTime;
+    
+    address public owner;
+    address public liquidityPool;
+    address public treasury;
+    address public emergencyCouncil;
+    address public feeRecipient;  // BNB address for fees
+    
+    uint256 public buyTax = 30;
+    uint256 public sellTax = 50;
+    uint256 public transferTax = 10;
+    
+    uint256 public liquidityShare = 40;
+    uint256 public stakingShare = 30;
+    uint256 public buybackShare = 20;
+    uint256 public teamShare = 10;
+    
+    uint256 public miningRate = 2e14;
+    uint256 public baseAPY = 1500;
+    uint256 public referralBonus = 100e18;
+    uint256 public referralReward = 5;
+    
+    uint256 public sessionDuration = 14400;
+    uint256 public dailySessions = 3;
+    uint256 public halvingBlocks = 2100000;
+    uint256 public blocksMined;
+    uint256 public currentHalving;
+    
+    bool public miningPaused;
+    uint256 public lastParameterChange;
+    uint256 public constant PARAMETER_TIMELOCK = 2 days;
+    
+    // Supply tracking
+    uint256 public teamMinted;
+    uint256 public liquidityMinted;
+    uint256 public ecosystemMinted;
+    
+    Tier[5] public tiers;
+    uint256[4] public lockPeriods = [2592000, 7776000, 15552000, 31536000];
+    uint256[4] public lockMultipliers = [100, 120, 150, 200];
+    
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
     mapping(address => Miner) public miners;
-    uint32 public totalMiners;
-    uint256 public totalDistributed;
+    mapping(address => Stake[]) public stakes;
+    mapping(address => VestingSchedule) public vestingSchedules;
+    mapping(address => uint256) public sessionStart;
+    mapping(address => uint256) public dailySessionsUsed;
+    mapping(address => uint256) public lastSessionDay;
+    mapping(address => bool) public isExempt;
+    mapping(address => bool) public isOperator;
+    mapping(address => uint256) public accumulatedRewardsPerStake;
     
-    // INCREASED UPGRADE COSTS (filter serious users)
-    uint256 public constant PREMIUM_COST = 2000 * 10**18; // 2,000 SA
-    uint256 public constant ULTRA_COST = 8000 * 10**18;   // 8,000 SA
-    uint32 public constant UPGRADE_DURATION = 180 days;   // 6 months
-    
-    // LIMITS
-    uint256 public constant MAX_CLAIM = 100_000 * 10**18; // 100,000 SA lifetime
-    uint256 public constant CLAIM_INTERVAL = 4 hours;     // Reduced frequency
-    uint8 public constant MAX_DAILY_CLAIMS = 6;          // 6 claims/day max
-    
-    // ============================
-    // WALLETS
-    // ============================
-    address public immutable VESTED_WALLET;
-    address public immutable MINING_WALLET;
-    address public immutable LIQUIDITY_WALLET;
-    
-    // ============================
-    // STATE
-    // ============================
-    bool public miningEnabled = true;
-    bool public transfersEnabled = true;
-    mapping(address => bool) public blacklist;
-    uint256 public totalVestedReleased;
-    uint40 public immutable VESTING_START;
-    uint32 public vestingDuration = 730 days;   // 2-year vesting
-    uint32 public vestingCliff = 180 days;      // 6-month cliff
-    
-    // ============================
-    // EVENTS
-    // ============================
+    // ============ EVENTS ============
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
     event TokensMined(address indexed miner, uint256 amount);
-    event MiningRegistered(address indexed user);
-    event MiningUpgraded(address indexed user, uint8 fromTier, uint8 toTier);
+    event TokensStaked(address indexed staker, uint256 amount, uint256 lockPeriod);
+    event TokensUnstaked(address indexed staker, uint256 amount, uint256 reward);
+    event TokensWithdrawn(address indexed user, uint256 amount, uint256 fee);
+    event RevenueDistributed(uint256 staking, uint256 buyback, uint256 liquidity);
+    event BuybackExecuted(uint256 amount, uint256 bnbValue);
+    event ReferralReward(address indexed referrer, address indexed referee, uint256 reward);
+    event MiningSessionStarted(address indexed miner, uint256 startTime);
+    event MiningSessionEnded(address indexed miner, uint256 reward);
+    event MiningPaused(bool paused);
+    event ParameterChangeQueued(string param, uint256 newValue, uint256 activationTime);
+    event AutoCompoundEnabled(address indexed user, bool enabled);
+    event StreakUpdated(address indexed user, uint256 streak);
+    event StakingRewardsDistributed(uint256 amount);
+    event TeamTokensMinted(address indexed beneficiary, uint256 amount, uint256 vestingYears);
+    event LiquidityTokensMinted(uint256 amount);
+    event EcosystemTokensMinted(uint256 amount);
+    event WithdrawFeePaid(address indexed user, uint256 amount, uint256 feePercent);
+    event BNBFeeDistributed(uint256 amount);
     
-    // ============================
-    // MODIFIERS
-    // ============================
-    modifier onlyMiningAdmin() {
-        require(hasRole(MINING_ADMIN_ROLE, msg.sender), "!admin");
+    // ============ MODIFIERS ============
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
         _;
     }
     
-    modifier onlySafetyAdmin() {
-        require(hasRole(SAFETY_ADMIN_ROLE, msg.sender), "!admin");
+    modifier onlyOperator() {
+        require(isOperator[msg.sender], "Not operator");
         _;
     }
     
-    modifier notBlacklisted(address a) {
-        require(!blacklist[a], "!blacklist");
+    modifier onlyEmergency() {
+        require(msg.sender == emergencyCouncil, "Not emergency council");
         _;
     }
     
-    modifier miningOn() {
-        require(miningEnabled, "!mining");
+    modifier notPaused() {
+        require(!miningPaused, "Mining paused");
         _;
     }
     
-    // ============================
-    // CONSTRUCTOR
-    // ============================
+    modifier timelockPassed() {
+        require(block.timestamp >= lastParameterChange + PARAMETER_TIMELOCK, "Timelock active");
+        _;
+    }
+    
+    // ============ CONSTRUCTOR ============
     constructor(
-        address vested,
-        address mining,
-        address liquidity
-    ) ERC20("SupremeAmer", "SA") {
-        require(vested != address(0), "!vested");
-        require(mining != address(0), "!mining");
-        require(liquidity != address(0), "!liquidity");
+        address _treasury,
+        address _liquidityPool,
+        address _emergencyCouncil,
+        address _feeRecipient
+    ) {
+        owner = msg.sender;
+        treasury = _treasury;
+        liquidityPool = _liquidityPool;
+        emergencyCouncil = _emergencyCouncil;
+        feeRecipient = _feeRecipient;
+        launchTime = block.timestamp;
         
-        VESTED_WALLET = vested;
-        MINING_WALLET = mining;
-        LIQUIDITY_WALLET = liquidity;
+        isOperator[owner] = true;
+        isOperator[_emergencyCouncil] = true;
+        isOperator[_feeRecipient] = true;
         
-        uint256 VESTED_AMOUNT = (TOTAL_SUPPLY * VESTED_PERCENT) / 100;
-        uint256 MINING_AMOUNT = (TOTAL_SUPPLY * MINING_PERCENT) / 100;
-        uint256 LIQUIDITY_AMOUNT = (TOTAL_SUPPLY * LIQUIDITY_PERCENT) / 100;
+        // Initialize tiers
+        tiers[0] = Tier(1e18, 100, 100, 0);
+        tiers[1] = Tier(100e18, 150, 110, 5);
+        tiers[2] = Tier(1000e18, 200, 120, 10);
+        tiers[3] = Tier(10000e18, 300, 130, 15);
+        tiers[4] = Tier(50000e18, 500, 150, 20);
         
-        VESTING_START = uint40(block.timestamp);
+        // Mint initial supply (150M)
+        _mint(owner, INITIAL_SUPPLY);
         
-        _mint(vested, VESTED_AMOUNT);       // 25% - 5,000,000 SA
-        _mint(mining, MINING_AMOUNT);       // 50% - 10,000,000 SA
-        _mint(liquidity, LIQUIDITY_AMOUNT); // 25% - 5,000,000 SA
+        // Mint liquidity allocation to contract (200M)
+        _mint(address(this), LIQUIDITY_SUPPLY);
+        liquidityMinted = LIQUIDITY_SUPPLY;
+        emit LiquidityTokensMinted(LIQUIDITY_SUPPLY);
         
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINING_ADMIN_ROLE, msg.sender);
-        _grantRole(SAFETY_ADMIN_ROLE, msg.sender);
+        // Mint ecosystem allocation to contract (150M)
+        _mint(address(this), ECOSYSTEM_SUPPLY);
+        ecosystemMinted = ECOSYSTEM_SUPPLY;
+        emit EcosystemTokensMinted(ECOSYSTEM_SUPPLY);
+        
+        // Exempt addresses
+        isExempt[owner] = true;
+        isExempt[address(this)] = true;
+        isExempt[_treasury] = true;
+        isExempt[_liquidityPool] = true;
+        isExempt[_feeRecipient] = true;
+        
+        // Register owner as miner
+        miners[owner] = Miner({
+            totalMined: 0,
+            lastMineTime: uint40(block.timestamp),
+            miningBoost: 100,
+            stakedAmount: 0,
+            referralCount: 0,
+            referrer: address(0),
+            tier: 0,
+            lastClaim: uint40(block.timestamp),
+            pendingRewards: 0,
+            streak: 0,
+            autoCompound: false,
+            lastWithdrawTime: 0
+        });
+        activeMiners++;
     }
     
-    // ============================
-    // REQUIRED OVERRIDES
-    // ============================
-    
-    /**
-     * @dev See {IERC165-supportsInterface}
-     */
-    function supportsInterface(bytes4 interfaceId) 
-        public 
-        view 
-        override(AccessControl) 
-        returns (bool) 
-    {
-        return super.supportsInterface(interfaceId);
+    // ============ ENHANCED ERC20 WITH WITHDRAW FEE ============
+    function transfer(address to, uint256 value) external returns (bool) {
+        _transfer(msg.sender, to, value);
+        return true;
     }
     
-    // ============================
-    // MINING FUNCTIONS
-    // ============================
-    function registerMining() external miningOn notBlacklisted(msg.sender) {
-        require(!miners[msg.sender].isActive, "!active");
-        require(balanceOf(msg.sender) >= 10 * 10**18, "!balance"); // Need 10 SA
+    function approve(address spender, uint256 value) external returns (bool) {
+        allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
+        return true;
+    }
+    
+    function transferFrom(address from, address to, uint256 value) external returns (bool) {
+        require(allowance[from][msg.sender] >= value, "Allowance exceeded");
+        allowance[from][msg.sender] -= value;
+        _transfer(from, to, value);
+        return true;
+    }
+    
+    function _transfer(address from, address to, uint256 value) internal {
+        require(balanceOf[from] >= value, "Insufficient balance");
         
-        miners[msg.sender] = Miner({
-            lastClaimTime: uint40(block.timestamp),
-            upgradeExpiry: 0,
-            dailyClaims: 0,
-            lastClaimDate: 0,
-            totalClaimed: 0,
-            miningTier: 1,
-            isActive: true
+        uint256 tax = 0;
+        if (!isExempt[from] && !isExempt[to]) {
+            if (to == liquidityPool) {
+                tax = (value * sellTax) / 1000;
+            } else if (from == liquidityPool) {
+                tax = (value * buyTax) / 1000;
+            } else {
+                tax = (value * transferTax) / 1000;
+            }
+        }
+        
+        uint256 netAmount = value - tax;
+        balanceOf[from] -= value;
+        balanceOf[to] += netAmount;
+        emit Transfer(from, to, netAmount);
+        
+        if (tax > 0) {
+            balanceOf[address(this)] += tax;
+            emit Transfer(from, address(this), tax);
+            _distributeTax(tax);
+        }
+    }
+    
+    // ============ WITHDRAW WITH TIME-BASED FEE ============
+    function withdrawTokens(uint256 amount) external {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        require(amount > 0, "Amount must be > 0");
+        
+        Miner storage miner = miners[msg.sender];
+        uint256 feePercent = _calculateWithdrawFee(miner.lastWithdrawTime);
+        uint256 fee = (amount * feePercent) / 10000;
+        uint256 netAmount = amount - fee;
+        
+        // Update miner's last withdraw time
+        miner.lastWithdrawTime = block.timestamp;
+        
+        // Transfer tokens
+        balanceOf[msg.sender] -= amount;
+        balanceOf[msg.sender] += netAmount; // Keep net amount in wallet
+        
+        if (fee > 0) {
+            // Convert fee to BNB and send to fee recipient
+            uint256 bnbAmount = _convertToBNB(fee);
+            if (bnbAmount > 0) {
+                payable(feeRecipient).transfer(bnbAmount);
+                emit BNBFeeDistributed(bnbAmount);
+            }
+            
+            // Burn the fee tokens
+            balanceOf[address(this)] += fee;
+            _burn(fee);
+        }
+        
+        emit TokensWithdrawn(msg.sender, netAmount, fee);
+        emit Transfer(msg.sender, msg.sender, netAmount); // Self-transfer for event
+    }
+    
+    function _calculateWithdrawFee(uint256 lastWithdraw) internal view returns (uint256) {
+        if (lastWithdraw == 0) {
+            // First withdraw: 10% fee
+            return BASE_WITHDRAW_FEE;
+        }
+        
+        uint256 timeSinceLastWithdraw = block.timestamp - lastWithdraw;
+        
+        if (timeSinceLastWithdraw >= WITHDRAW_FEE_DURATION) {
+            // After 30 days: 1% fee (minimum)
+            return MIN_WITHDRAW_FEE;
+        }
+        
+        // Linear reduction from 10% to 1% over 30 days
+        uint256 feeReduction = ((BASE_WITHDRAW_FEE - MIN_WITHDRAW_FEE) * timeSinceLastWithdraw) / WITHDRAW_FEE_DURATION;
+        uint256 currentFee = BASE_WITHDRAW_FEE - feeReduction;
+        
+        return currentFee > MIN_WITHDRAW_FEE ? currentFee : MIN_WITHDRAW_FEE;
+    }
+    
+    function getWithdrawFee(address user) external view returns (uint256 feePercent, uint256 nextWithdrawTime) {
+        Miner storage miner = miners[user];
+        feePercent = _calculateWithdrawFee(miner.lastWithdrawTime);
+        
+        if (miner.lastWithdrawTime > 0) {
+            uint256 timePassed = block.timestamp - miner.lastWithdrawTime;
+            if (timePassed < WITHDRAW_FEE_DURATION) {
+                nextWithdrawTime = miner.lastWithdrawTime + WITHDRAW_FEE_DURATION;
+            } else {
+                nextWithdrawTime = 0; // Already at minimum fee
+            }
+        } else {
+            nextWithdrawTime = 0;
+        }
+    }
+    
+    function _convertToBNB(uint256 tokenAmount) internal returns (uint256) {
+        // In production, use PancakeSwap or similar DEX to convert SA to BNB
+        // For now, simplified version - tokens are burned and equivalent BNB is sent from contract balance
+        
+        require(address(this).balance >= tokenAmount / 100, "Insufficient BNB for conversion");
+        uint256 bnbAmount = tokenAmount / 100; // Simplified conversion rate
+        
+        // Burn the tokens
+        balanceOf[address(this)] -= tokenAmount;
+        totalSupply -= tokenAmount;
+        totalBurned += tokenAmount;
+        
+        return bnbAmount;
+    }
+    
+    // ============ FIXED SUPPLY MANAGEMENT ============
+    function mintTeamAllocation(address beneficiary, uint256 amount, uint256 vestingYears) external onlyOwner {
+        require(amount <= TEAM_SUPPLY - teamMinted, "Exceeds team allocation");
+        require(vestingYears >= 1 && vestingYears <= 4, "Vesting 1-4 years");
+        require(beneficiary != address(0), "Invalid beneficiary");
+        
+        teamMinted += amount;
+        
+        // Create vesting schedule (25% cliff at 1 year, then linear)
+        vestingSchedules[beneficiary] = VestingSchedule({
+            totalAmount: amount,
+            claimed: 0,
+            startTime: block.timestamp,
+            vestingDuration: vestingYears * 365 days,
+            cliffDuration: 365 days
         });
         
-        totalMiners++;
-        emit MiningRegistered(msg.sender);
+        emit TeamTokensMinted(beneficiary, amount, vestingYears);
     }
     
-    function claimRewards() external notBlacklisted(msg.sender) returns (uint256) {
-        require(miningEnabled, "!mining");
-        Miner storage m = miners[msg.sender];
-        require(m.isActive, "!active");
-        require(m.totalClaimed < MAX_CLAIM, "!max");
+    function claimVestedTokens() external {
+        VestingSchedule storage schedule = vestingSchedules[msg.sender];
+        require(schedule.totalAmount > 0, "No vesting schedule");
         
-        require(block.timestamp >= m.lastClaimTime + CLAIM_INTERVAL, "!interval");
+        uint256 vested = calculateVestedAmount(msg.sender);
+        uint256 claimable = vested - schedule.claimed;
         
-        uint16 today = uint16(block.timestamp / 1 days);
-        if (m.lastClaimDate != today) {
-            m.lastClaimDate = today;
-            m.dailyClaims = 0;
-        }
-        require(m.dailyClaims < MAX_DAILY_CLAIMS, "!daily");
+        require(claimable > 0, "Nothing to claim");
         
-        uint256 timePassed = block.timestamp - m.lastClaimTime;
-        require(timePassed > 0, "!time");
+        schedule.claimed += claimable;
+        _mint(msg.sender, claimable);
+    }
+    
+    function calculateVestedAmount(address beneficiary) public view returns (uint256) {
+        VestingSchedule storage schedule = vestingSchedules[beneficiary];
         
-        // Get daily reward based on tier
-        uint256 dailyReward = _getDailyReward(m.miningTier, m.upgradeExpiry);
-        uint256 reward = (dailyReward * timePassed) / 86400; // SECONDS_PER_DAY
-        
-        uint256 poolBalance = balanceOf(MINING_WALLET);
-        if (reward > poolBalance) reward = poolBalance;
-        
-        uint256 remaining = MAX_CLAIM - m.totalClaimed;
-        if (reward > remaining) reward = remaining;
-        
-        require(reward > 0, "!reward");
-        
-        _transfer(MINING_WALLET, msg.sender, reward);
-        totalDistributed += reward;
-        
-        m.totalClaimed = uint104(m.totalClaimed + reward);
-        m.lastClaimTime = uint40(block.timestamp);
-        m.dailyClaims++;
-        
-        if (m.upgradeExpiry > 0 && block.timestamp > m.upgradeExpiry) {
-            m.miningTier = 1;
-            m.upgradeExpiry = 0;
+        if (block.timestamp < schedule.startTime + schedule.cliffDuration) {
+            return 0; // Cliff period
         }
         
-        emit TokensMined(msg.sender, reward);
-        return reward;
+        if (block.timestamp >= schedule.startTime + schedule.vestingDuration) {
+            return schedule.totalAmount; // Fully vested
+        }
+        
+        // Linear vesting after cliff
+        uint256 timeSinceCliff = block.timestamp - (schedule.startTime + schedule.cliffDuration);
+        uint256 vestingPeriod = schedule.vestingDuration - schedule.cliffDuration;
+        
+        return (schedule.totalAmount * timeSinceCliff) / vestingPeriod;
     }
     
-    function upgradeMining(uint8 newTier) external notBlacklisted(msg.sender) {
-        require(newTier == 2 || newTier == 3, "!tier");
-        require(miningEnabled, "!mining");
+    function releaseLiquidityTokens(uint256 amount) external onlyOperator {
+        require(amount <= LIQUIDITY_SUPPLY - liquidityMinted, "Exceeds liquidity allocation");
+        require(amount > 0, "Amount must be > 0");
         
-        Miner storage m = miners[msg.sender];
-        require(m.isActive, "!active");
-        require(m.miningTier < newTier, "!upgrade");
+        // Transfer from contract to liquidity pool
+        require(balanceOf[address(this)] >= amount, "Insufficient contract balance");
         
-        uint256 cost = newTier == 2 ? PREMIUM_COST : ULTRA_COST;
-        require(balanceOf(msg.sender) >= cost, "!balance");
+        balanceOf[address(this)] -= amount;
+        balanceOf[liquidityPool] += amount;
+        liquidityMinted += amount;
         
-        _transfer(msg.sender, MINING_WALLET, cost);
-        
-        uint8 oldTier = m.miningTier;
-        m.miningTier = newTier;
-        m.upgradeExpiry = uint40(block.timestamp + UPGRADE_DURATION);
-        
-        emit MiningUpgraded(msg.sender, oldTier, newTier);
+        emit Transfer(address(this), liquidityPool, amount);
     }
     
-    function _getDailyReward(uint8 tier, uint40 expiry) internal view returns (uint256) {
-        if (expiry > 0 && block.timestamp > expiry) return DAILY_BASIC_REWARD;
+    function releaseEcosystemTokens(uint256 amount) external onlyOperator {
+        require(amount <= ECOSYSTEM_SUPPLY - ecosystemMinted, "Exceeds ecosystem allocation");
+        require(amount > 0, "Amount must be > 0");
         
-        if (tier == 3) return DAILY_ULTRA_REWARD;
-        if (tier == 2) return DAILY_PREMIUM_REWARD;
-        return DAILY_BASIC_REWARD;
+        // Transfer from contract to treasury for ecosystem development
+        require(balanceOf[address(this)] >= amount, "Insufficient contract balance");
+        
+        balanceOf[address(this)] -= amount;
+        balanceOf[treasury] += amount;
+        ecosystemMinted += amount;
+        
+        emit Transfer(address(this), treasury, amount);
     }
     
-    function pendingRewards(address user) public view returns (uint256) {
-        if (!miners[user].isActive) return 0;
-        Miner storage m = miners[user];
-        if (m.lastClaimTime == 0) return 0;
+    // ============ FIXED MINING FUNCTIONS ============
+    function registerMiner(address referrer) external {
+        require(miners[msg.sender].lastMineTime == 0, "Already registered");
+        require(!miningPaused, "Mining paused");
         
-        uint256 timePassed = block.timestamp - m.lastClaimTime;
-        if (timePassed == 0 || timePassed < CLAIM_INTERVAL) return 0;
+        miners[msg.sender] = Miner({
+            totalMined: 0,
+            lastMineTime: uint40(block.timestamp),
+            miningBoost: 100,
+            stakedAmount: 0,
+            referralCount: 0,
+            referrer: (referrer != address(0) && referrer != msg.sender && miners[referrer].lastMineTime > 0) ? referrer : address(0),
+            tier: 0,
+            lastClaim: uint40(block.timestamp),
+            pendingRewards: 0,
+            streak: 0,
+            autoCompound: false,
+            lastWithdrawTime: 0
+        });
+        activeMiners++;
         
-        uint256 dailyReward = _getDailyReward(m.miningTier, m.upgradeExpiry);
-        uint256 reward = (dailyReward * timePassed) / 86400;
-        
-        uint256 poolBalance = balanceOf(MINING_WALLET);
-        uint256 remaining = MAX_CLAIM - m.totalClaimed;
-        
-        if (reward > poolBalance) reward = poolBalance;
-        if (reward > remaining) reward = remaining;
-        
-        return reward;
-    }
-    
-    // ============================
-    // VIEW FUNCTIONS
-    // ============================
-    function getMinerInfo(address user) external view returns (
-        bool isActive,
-        uint8 tier,
-        uint256 lastClaim,
-        uint256 total,
-        uint256 pending,
-        uint256 dailyReward
-    ) {
-        Miner storage m = miners[user];
-        uint256 daily = _getDailyReward(m.miningTier, m.upgradeExpiry);
-        
-        return (
-            m.isActive,
-            m.miningTier,
-            m.lastClaimTime,
-            m.totalClaimed,
-            pendingRewards(user),
-            daily
-        );
-    }
-    
-    function getStats() external view returns (
-        uint256 miningPool,
-        uint256 vestedPool,
-        uint256 minersCount,
-        uint256 distributed,
-        uint256 daysRemaining
-    ) {
-        uint256 dailyDrain = _estimateDailyDrain();
-        uint256 pool = balanceOf(MINING_WALLET);
-        uint256 daysLeft = dailyDrain > 0 ? pool / dailyDrain : type(uint256).max;
-        
-        return (
-            pool,
-            balanceOf(VESTED_WALLET),
-            totalMiners,
-            totalDistributed,
-            daysLeft
-        );
-    }
-    
-    function _estimateDailyDrain() internal view returns (uint256) {
-        if (totalMiners == 0) return 0;
-        
-        // Simplified estimation: assume all miners are active
-        uint256 totalDailyReward = 0;
-        // We can't iterate all miners, so use a statistical approach
-        // Assuming distribution: 70% Basic, 20% Premium, 10% Ultra
-        
-        uint256 basicMiners = (totalMiners * 70) / 100;
-        uint256 premiumMiners = (totalMiners * 20) / 100;
-        uint256 ultraMiners = (totalMiners * 10) / 100;
-        
-        totalDailyReward = (basicMiners * DAILY_BASIC_REWARD) +
-                          (premiumMiners * DAILY_PREMIUM_REWARD) +
-                          (ultraMiners * DAILY_ULTRA_REWARD);
-        
-        return totalDailyReward;
-    }
-    
-    function getRewardInfo() external pure returns (
-        uint256 basicDaily,
-        uint256 premiumDaily,
-        uint256 ultraDaily,
-        uint256 premiumCost,
-        uint256 ultraCost
-    ) {
-        return (
-            DAILY_BASIC_REWARD,
-            DAILY_PREMIUM_REWARD,
-            DAILY_ULTRA_REWARD,
-            PREMIUM_COST,
-            ULTRA_COST
-        );
-    }
-    
-    // ============================
-    // ADMIN FUNCTIONS
-    // ============================
-    function refillPool(uint256 amount) external onlyMiningAdmin {
-        require(amount > 0, "!amount");
-        require(balanceOf(msg.sender) >= amount, "!balance");
-        _transfer(msg.sender, MINING_WALLET, amount);
-    }
-    
-    function setMining(bool enabled) external onlySafetyAdmin {
-        miningEnabled = enabled;
-    }
-    
-    function setTransfers(bool enabled) external onlySafetyAdmin {
-        transfersEnabled = enabled;
-    }
-    
-    function setBlacklist(address account, bool blacklisted) external onlySafetyAdmin {
-        blacklist[account] = blacklisted;
-        if (blacklisted && miners[account].isActive) {
-            miners[account].isActive = false;
-            if (totalMiners > 0) totalMiners--;
+        if (miners[msg.sender].referrer != address(0)) {
+            miners[referrer].referralCount++;
+            if (miners[referrer].referralCount % 10 == 0) {
+                _mint(referrer, referralBonus);
+                emit ReferralReward(referrer, msg.sender, referralBonus);
+            }
         }
     }
     
-    // ============================
-    // ERC20 OVERRIDES WITH TRANSFER RESTRICTIONS
-    // ============================
-    
-    function transfer(address to, uint256 amount) public override returns (bool) {
-        require(transfersEnabled, "!transfers");
-        require(!blacklist[msg.sender], "!blacklist");
-        require(!blacklist[to], "!blacklist");
-        require(amount > 0, "!amount");
-        return super.transfer(to, amount);
+    function startMiningSession() external notPaused {
+        Miner storage miner = miners[msg.sender];
+        require(miner.lastMineTime > 0, "Not registered");
+        
+        uint256 today = block.timestamp / 86400;
+        if (lastSessionDay[msg.sender] != today) {
+            dailySessionsUsed[msg.sender] = 0;
+            lastSessionDay[msg.sender] = today;
+        }
+        
+        require(dailySessionsUsed[msg.sender] < dailySessions, "Daily limit reached");
+        require(sessionStart[msg.sender] == 0, "Session active");
+        
+        sessionStart[msg.sender] = block.timestamp;
+        dailySessionsUsed[msg.sender]++;
+        
+        // Update streak
+        if (miner.lastClaim > 0 && (block.timestamp - miner.lastClaim) <= 86400) {
+            miner.streak = uint8(_min(uint256(miner.streak + 1), 30));
+            emit StreakUpdated(msg.sender, miner.streak);
+        }
+        
+        emit MiningSessionStarted(msg.sender, block.timestamp);
     }
     
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        require(transfersEnabled, "!transfers");
-        require(!blacklist[from], "!blacklist");
-        require(!blacklist[to], "!blacklist");
-        require(amount > 0, "!amount");
-        return super.transferFrom(from, to, amount);
+    function claimMiningRewards() external notPaused returns (uint256) {
+        require(sessionStart[msg.sender] > 0, "No active session");
+        
+        uint256 elapsed = block.timestamp - sessionStart[msg.sender];
+        if (elapsed > sessionDuration) elapsed = sessionDuration;
+        
+        // Dynamic mining rate based on remaining supply
+        uint256 remainingMiningSupply = MINING_SUPPLY - totalMined;
+        uint256 adjustedMiningRate = miningRate;
+        
+        if (remainingMiningSupply < MINING_SUPPLY / 2) {
+            adjustedMiningRate = miningRate * 80 / 100; // Reduce 20% after 50% mined
+        }
+        if (remainingMiningSupply < MINING_SUPPLY / 4) {
+            adjustedMiningRate = miningRate * 60 / 100; // Reduce 40% after 75% mined
+        }
+        
+        uint256 rewards = _calculateRewards(msg.sender, elapsed, adjustedMiningRate);
+        
+        // Apply halving
+        if (currentHalving > 0) {
+            rewards = rewards / (1 << currentHalving);
+        }
+        
+        require(totalMined + rewards <= MINING_SUPPLY, "Mining cap reached");
+        
+        Miner storage miner = miners[msg.sender];
+        
+        // Auto-compound check
+        if (miner.autoCompound && miner.stakedAmount > 0 && rewards > 1e18) {
+            uint256 toStake = rewards / 2;
+            _stakeAutoCompound(msg.sender, toStake);
+            rewards -= toStake;
+        }
+        
+        _mint(msg.sender, rewards);
+        miner.totalMined += uint96(rewards);
+        totalMined += rewards;
+        miner.lastClaim = uint40(block.timestamp);
+        blocksMined += (rewards * 1e18) / adjustedMiningRate;
+        
+        // Check halving threshold
+        if (blocksMined >= halvingBlocks) {
+            currentHalving++;
+            blocksMined = 0;
+        }
+        
+        // Referral rewards
+        if (miner.referrer != address(0)) {
+            uint256 referralRewards = (rewards * referralReward) / 100;
+            _mint(miner.referrer, referralRewards);
+            emit ReferralReward(miner.referrer, msg.sender, referralRewards);
+        }
+        
+        miner.lastMineTime = uint40(block.timestamp);
+        
+        if (elapsed >= sessionDuration) {
+            sessionStart[msg.sender] = 0;
+            emit MiningSessionEnded(msg.sender, rewards);
+        } else {
+            sessionStart[msg.sender] = block.timestamp;
+        }
+        
+        emit TokensMined(msg.sender, rewards);
+        return rewards;
     }
     
-    function approve(address spender, uint256 amount) public override returns (bool) {
-        require(transfersEnabled, "!transfers");
-        require(!blacklist[msg.sender], "!blacklist");
-        require(!blacklist[spender], "!blacklist");
-        return super.approve(spender, amount);
+    function _calculateRewards(address minerAddress, uint256 elapsed, uint256 currentMiningRate) internal view returns (uint256) {
+        Miner storage miner = miners[minerAddress];
+        
+        // Base rewards
+        uint256 baseRewards = currentMiningRate * elapsed;
+        
+        // Tier multiplier
+        uint256 tierMultiplier = uint256(tiers[miner.tier].miningMultiplier);
+        
+        // Staking boost with diminishing returns
+        uint256 stakingBoost = _calculateStakingBoost(miner.stakedAmount);
+        
+        // Streak bonus (100% + streak * 10%)
+        uint256 streakBonus = 100 + (uint256(miner.streak) * 10);
+        
+        // Total multiplier calculation
+        uint256 totalMultiplier = (tierMultiplier * stakingBoost * streakBonus) / (100 * 100 * 100);
+        
+        // Dynamic difficulty adjustment
+        uint256 difficulty = _getDifficultyMultiplier();
+        
+        return (baseRewards * totalMultiplier * difficulty) / 100;
     }
     
-    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
-        require(transfersEnabled, "!transfers");
-        require(!blacklist[msg.sender], "!blacklist");
-        require(!blacklist[spender], "!blacklist");
-        uint256 current = allowance(msg.sender, spender);
-        _approve(msg.sender, spender, current + addedValue);
-        return true;
+    function _calculateStakingBoost(uint256 stakedAmount) internal pure returns (uint256) {
+        if (stakedAmount == 0) return 100;
+        
+        uint256 stakeInTokens = stakedAmount / 1e18;
+        if (stakeInTokens == 0) return 100;
+        
+        // Logarithmic scaling: boost = 100 + 20 * log10(stake)
+        uint256 logValue = 0;
+        uint256 temp = stakeInTokens;
+        
+        while (temp >= 10) {
+            logValue++;
+            temp /= 10;
+        }
+        
+        uint256 additionalBoost = logValue * 20;
+        if (additionalBoost > 100) additionalBoost = 100;
+        
+        return 100 + additionalBoost;
     }
     
-    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
-        require(transfersEnabled, "!transfers");
-        require(!blacklist[msg.sender], "!blacklist");
-        require(!blacklist[spender], "!blacklist");
-        uint256 current = allowance(msg.sender, spender);
-        require(current >= subtractedValue, "ERC20: decreased allowance below zero");
-        _approve(msg.sender, spender, current - subtractedValue);
-        return true;
+    function _getDifficultyMultiplier() internal view returns (uint256) {
+        if (activeMiners < 100) return 120;
+        if (activeMiners > 5000) return 80;
+        if (activeMiners > 1000) return 90;
+        return 100;
     }
     
-    // ============================
-    // FALLBACK
-    // ============================
-    receive() external payable {
-        revert("!BNB");
+    // ============ FIXED STAKING FUNCTIONS ============
+    function stakeTokens(uint256 amount, uint256 lockIndex) public {
+        require(lockIndex < lockPeriods.length, "Invalid lock");
+        require(amount > 0, "Amount must be > 0");
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        
+        balanceOf[msg.sender] -= amount;
+        balanceOf[address(this)] += amount;
+        emit Transfer(msg.sender, address(this), amount);
+        
+        uint256 multiplier = lockMultipliers[lockIndex];
+        uint256 effectiveAPY = (baseAPY * multiplier) / 100;
+        uint256 lockPeriod = lockPeriods[lockIndex];
+        uint256 reward = (amount * effectiveAPY * lockPeriod) / (10000 * SECONDS_PER_YEAR);
+        
+        stakes[msg.sender].push(Stake({
+            amount: uint64(amount),
+            startTime: uint40(block.timestamp),
+            lockPeriod: uint16(lockPeriod),
+            rewardDebt: uint64(reward),
+            multiplier: uint8(multiplier),
+            active: true
+        }));
+        
+        miners[msg.sender].stakedAmount += uint64(amount);
+        totalStaked += amount;
+        _updateTier(msg.sender);
+        
+        emit TokensStaked(msg.sender, amount, lockPeriod);
+    }
+    
+    function unstakeTokens(uint256 stakeIndex) external {
+        require(stakeIndex < stakes[msg.sender].length, "Invalid stake");
+        
+        Stake storage stake = stakes[msg.sender][stakeIndex];
+        require(stake.active, "Already unstaked");
+        require(block.timestamp >= stake.startTime + stake.lockPeriod, "Lock period active");
+        
+        uint256 amount = stake.amount;
+        uint256 reward = stake.rewardDebt;
+        uint256 total = amount + reward;
+        
+        require(balanceOf[address(this)] >= total, "Insufficient contract balance");
+        
+        balanceOf[address(this)] -= total;
+        balanceOf[msg.sender] += total;
+        emit Transfer(address(this), msg.sender, total);
+        
+        miners[msg.sender].stakedAmount -= uint64(amount);
+        totalStaked -= amount;
+        stake.active = false;
+        _updateTier(msg.sender);
+        
+        emit TokensUnstaked(msg.sender, amount, reward);
+    }
+    
+    // ============ UTILITY FUNCTIONS ============
+    function _mint(address to, uint256 amount) internal {
+        require(totalSupply + amount <= MAX_SUPPLY, "Max supply exceeded");
+        totalSupply += amount;
+        balanceOf[to] += amount;
+        emit Transfer(address(0), to, amount);
+    }
+    
+    function _burn(uint256 amount) internal {
+        totalSupply -= amount;
+        totalBurned += amount;
+        emit Transfer(address(this), address(0), amount);
+    }
+    
+    function burn(uint256 amount) external {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        balanceOf[msg.sender] -= amount;
+        _burn(amount);
+    }
+    
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+    
+    function _updateTier(address user) internal {
+        Miner storage miner = miners[user];
+        uint256 staked = miner.stakedAmount;
+        
+        for (uint256 i = tiers.length; i > 0; i--) {
+            if (staked >= tiers[i-1].requiredStake) {
+                miner.tier = uint8(i-1);
+                miner.miningBoost = tiers[i-1].miningMultiplier;
+                break;
+            }
+        }
+    }
+    
+    // ============ VIEW FUNCTIONS ============
+    function getSupplyInfo() external view returns (
+        uint256 maxSupply,
+        uint256 currentSupply,
+        uint256 burned,
+        uint256 availableToMine,
+        uint256 availableTeam,
+        uint256 availableLiquidity,
+        uint256 availableEcosystem
+    ) {
+        return (
+            MAX_SUPPLY,
+            totalSupply,
+            totalBurned,
+            MINING_SUPPLY - totalMined,
+            TEAM_SUPPLY - teamMinted,
+            LIQUIDITY_SUPPLY - liquidityMinted,
+            ECOSYSTEM_SUPPLY - ecosystemMinted
+        );
+    }
+    
+    function getUserStats(address user) external view returns (
+        uint256 balance,
+        uint256 staked,
+        uint256 mined,
+        uint256 pendingRewards,
+        uint256 tier,
+        uint256 referrals,
+        uint256 streak,
+        bool autoCompoundEnabled
+    ) {
+        balance = balanceOf[user];
+        staked = miners[user].stakedAmount;
+        mined = miners[user].totalMined;
+        pendingRewards = calculatePendingRewards(user);
+        tier = miners[user].tier;
+        referrals = miners[user].referralCount;
+        streak = miners[user].streak;
+        autoCompoundEnabled = miners[user].autoCompound;
+    }
+    
+    function calculatePendingRewards(address user) public view returns (uint256) {
+        if (sessionStart[user] == 0) return 0;
+        uint256 elapsed = block.timestamp - sessionStart[user];
+        if (elapsed > sessionDuration) elapsed = sessionDuration;
+        
+        uint256 remainingMiningSupply = MINING_SUPPLY - totalMined;
+        uint256 adjustedMiningRate = miningRate;
+        
+        if (remainingMiningSupply < MINING_SUPPLY / 2) {
+            adjustedMiningRate = miningRate * 80 / 100;
+        }
+        if (remainingMiningSupply < MINING_SUPPLY / 4) {
+            adjustedMiningRate = miningRate * 60 / 100;
+        }
+        
+        return _calculateRewards(user, elapsed, adjustedMiningRate);
+    }
+    
+    receive() external payable {}
+    
+    // Emergency functions
+    function pauseMining(bool pause) external onlyEmergency {
+        miningPaused = pause;
+        emit MiningPaused(pause);
+    }
+    
+    function emergencyWithdraw() external {
+        require(miningPaused, "Not in emergency");
+        
+        Miner storage miner = miners[msg.sender];
+        require(miner.stakedAmount > 0, "No stake");
+        
+        uint256 totalStake = 0;
+        for (uint256 i = 0; i < stakes[msg.sender].length; i++) {
+            if (stakes[msg.sender][i].active) {
+                totalStake += stakes[msg.sender][i].amount;
+                stakes[msg.sender][i].active = false;
+            }
+        }
+        
+        if (totalStake > 0) {
+            miners[msg.sender].stakedAmount = 0;
+            totalStaked -= totalStake;
+            balanceOf[address(this)] -= totalStake;
+            balanceOf[msg.sender] += totalStake;
+            emit Transfer(address(this), msg.sender, totalStake);
+        }
     }
 }
-
